@@ -36,7 +36,7 @@ GatewaySchema.statics.serial_port_list_sync = function () {
 
 
 //var _serial_port_to_use = function(list_in) {
-GatewaySchema.statics.serial_port_to_use = function serial_port_to_use(list_in) {
+GatewaySchema.statics.serial_port_to_use = function (list_in) {
 
     list_in = "" + list_in;
     var first_one = list_in.split("\n")[0].replace(/\r?\n|\r/,"");
@@ -52,7 +52,7 @@ GatewaySchema.statics.serial_port_to_use = function serial_port_to_use(list_in) 
 
 var SerialPort = require('serialport');
 //var _test_serial_as_xbee = function(port_name) {
-GatewaySchema.statics.test_serial_as_xbee = function test_serial_as_xbee(port_name) {
+GatewaySchema.statics.test_serial_as_xbee = function (port_name) {
 
     port = new SerialPort(port_name, {
         baudRate: 9600
@@ -71,7 +71,6 @@ GatewaySchema.statics.initialize_gateway_serial = function () {
 //exports.initialize_gateway_serial = function () {
 
     console.log("Got into GatewaySchema.statics.initialize_gateway_serial");
-    //return { list:"1", first_port:"2", port:"3"};
 
     var _port_list = Gateway.serial_port_list_sync();
     var _first_port = Gateway.serial_port_to_use(_port_list);
