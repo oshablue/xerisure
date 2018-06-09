@@ -1,5 +1,9 @@
 extends layout
 
+block scripts
+    script(src='https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js')
+    script(src='/javascripts/socketwork.js')
+
 block content
   h1= siteName + ' :: Gateway'
   p Welcome to Xerisure #{siteName} Gateway Page
@@ -14,6 +18,8 @@ block content
   pre(class='preserve-whitespace' class='pre-scrollable')
     p= JSON.stringify(port)
 
+  #dialogue
+  #angle
 
   h2 Developer Resources
   ul
@@ -25,6 +31,10 @@ block content
       a(href='http://theholmesoffice.com/getting-ready-for-scalability-creating-an-mvc-framework-for-our-node-js-page/') Holmes Office on basic MVC with Node.js including a static model for simple test data
     li
       a(href='https://www.npmjs.com/package/serialport') Node.js npm serialport package
+    li
+      a(href='http://helloraspberrypi.blogspot.com/2014/03/nodejssocketioserialport-web-app-to.html') RaspPi Socket.io Node.js etc.
+    li
+      a(href='http://danialk.github.io/blog/2014/04/26/arduino-and-processingjs-and-socketio-in-action/') Arduino Node.js and Socket.io
 
   h2 Serial Port Access
   p. 
@@ -46,4 +56,7 @@ block content
     li
     li
 
+    
+
+    
 

@@ -15,7 +15,7 @@ exports.initialize_serial = function(req, res) {
 
     var items = Gateway.initialize_gateway_serial();
 
-    res.render('gateway', { serialPortList: items.list, serialPortToUse: items.first_port });
+    res.render('gateway', { serialPortList: items.list, serialPortToUse: items.first_port, port: items.port });
 
 };
 

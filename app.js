@@ -10,6 +10,17 @@ var gatewayRouter = require('./routes/gateway');
 
 var app = express();
 
+
+var socket_io = require('socket.io');
+var io = socket_io();
+app.io = io;
+
+
+//var app = require('express')();
+//var server = require('http').Server(app);
+//var io = require('socket.io')(server);
+//server.listen(3000);
+
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
@@ -43,3 +54,4 @@ app.use(function(err, req, res, next) {
 });
 
 module.exports = app;
+
