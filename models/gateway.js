@@ -6,6 +6,9 @@
 // see:
 // https://stackoverflow.com/questions/9230932/file-structure-of-mongoose-nodejs-project
 
+var XBee = require('./xbee').XBee;
+var Utils = require('../lib/utils');
+var sleep = Utils.sleep;
 
 var mongoose = require('mongoose');
 
@@ -77,6 +80,12 @@ GatewaySchema.statics.serial_port_to_use = function (list_in) {
 
 
 var SerialPort = require('serialport');
+var port_name;
+var port; /* = new SerialPort(); /*port_name, {
+        baudRate: 9600,
+        autoOpen: false
+    });*/
+
 //var SerialPort = serialport.SerialPort; // also Poller, base, etc.
 // https://node-serialport.github.io/node-serialport/SerialPort.html#open
 
@@ -84,10 +93,22 @@ GatewaySchema.statics.test_serial_as_xbee = function (port_name) {
 
     console.log("Got into test_serial_as_xbee");
 
-    var port = new SerialPort(port_name, {
-        baudRate: 9600,
-        autoOpen: false
-    });
+    // But wait what about re-starts?  Do we really need this at the app level right now?
+    if ( port == null ) {
+
+        console.log("port is null, initializing serial port ... for port_name: " + port_name);
+        port = new SerialPort( port_name, {
+            baudRate: 9600,
+            autoOpen: false
+        });
+    }
+
+    // Multiple instantiation / serial port lock issues with this in here of course, without proper
+    // object release in life cycle etc. of course
+    //var port = new SerialPort(port_name, {
+    //    baudRate: 9600,
+    //    autoOpen: false
+    //});
 
     var io = require('../app').io;
 
@@ -120,7 +141,10 @@ GatewaySchema.statics.test_serial_as_xbee = function (port_name) {
 
 
             port.on('data', function(data){
-                socket.emit('data', data.toString().replace("\r","<br>")); // lines terminated with 0x0d
+                socket.emit('data', "<br>" + data.toString().replace("\r","<br>")); 
+                // was replace with <br> // lines terminated with 0x0d
+                // or replace with " " (using "" creates a problem)
+
                 console.log(data);
                 //var angle = data[0];
                 //if(lastValue !== angle){
@@ -133,6 +157,9 @@ GatewaySchema.statics.test_serial_as_xbee = function (port_name) {
                 console.log("Server socket received connect with data: " + data);
             });
 
+
+            // Do you miss ajax and post?
+            // Or are socket(s) awesome here?
             socket.on('client_set_destination_mac_id', function(macid) {
                 console.log("Server socket received client_set_destination_mac_id of " + macid);
                 Gateway.set_destination_radio_mac_id(port, macid);
@@ -178,16 +205,18 @@ GatewaySchema.statics.set_digital_io = async function ( port, macid, pin, state 
     //# Exit command mode
     //serialport.write("atcn\r\n")
 
-    this_socket.emit('data', "<br>>+++ [Enter command mode] (2000ms)<br>");
-    port.write("+++");
-    await sleep(2000);
+    //this_socket.emit('data', "<br>>+++ [Enter command mode] (2000ms)<br>");
+    //port.write("+++");
+    //await sleep(2000);
+    await XBee.EnterCommandMode(port, this_socket);
 
     this_socket.emit('data', ">atap1 (100ms)<br>");
     port.write("atap1\r\n");
     await sleep(100);
 
-    this_socket.emit('data', "<br>>atcn [Exit command mode]<br>");
-    port.write("atcn\r\n");
+    //this_socket.emit('data', "<br>>atcn [Exit command mode]<br>");
+    //port.write("atcn\r\n");
+    await XBee.ExitCommandMode(port, this_socket);
 
     const START_BYTE = 0x7E;
     const FRAME_TYPE = 0x17;
@@ -290,26 +319,29 @@ GatewaySchema.statics.set_digital_io = async function ( port, macid, pin, state 
 
 GatewaySchema.statics.set_destination_radio_mac_id = async function ( port, macid ) {
 
+    // TODO DRY - How? Socket_id only after establishes socket, so again some sort of null checks
     var app = require('../app');
     var io = app.io;
     var socket_id = app.locals.gateway_socket_id;
     var this_socket = io.sockets.connected[socket_id];
     this_socket.emit('data', "Set destination radio mac id...<br>");
 
-    this_socket.emit('data', "<br>>+++ [Enter command mode] (2000ms)<br>");
-    port.write("+++");
-    await sleep(2000);
-// TODO add console prints to double-check
-    this_socket.emit('data', ">atdh= (100ms)<br>");
+    //this_socket.emit('data', "<br>>+++ [Enter command mode] (2000ms)<br>");
+    //port.write("+++");
+    //await sleep(2000);
+    await XBee.EnterCommandMode(port, this_socket);
+
+    this_socket.emit('data', ">atdh " + macid.substr(0,8) + " (100ms)<br>");
     port.write("atdh " + macid.substr(0,8) + "\r\n");
     await sleep(100);
 
-    this_socket.emit('data', ">atdl= (100ms)<br>");
+    this_socket.emit('data', ">atdl " + macid.substr(8,8) + " (100ms)<br>");
     port.write("atdl " + macid.substr(8,8) + "\r\n");
     await sleep(100);
 
-    this_socket.emit('data', "<br>>atcn [Exit command mode]<br>");
-    port.write("atcn\r\n");
+    //this_socket.emit('data', "<br>>atcn [Exit command mode]<br>");
+    //port.write("atcn\r\n");
+    await XBee.ExitCommandMode(port, this_socket);
 
 };
 
@@ -330,17 +362,26 @@ GatewaySchema.statics.initialize_gateway_serial = function () {
 };
 //exports.initialize_gateway_serial = _initialize_gateway_serial();
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+
+// TODO move to utils, etc.
+//function sleep(ms) {
+//    return new Promise(resolve => setTimeout(resolve, ms));
+//}
+
+
 
 
 GatewaySchema.statics.get_gateway_xbee_mac = async function (port) {
 
     console.log("Got into get_gateway_xbee_mac");
 
-    port.open();
-    await sleep(2000);
+    //console.log("Port is open?" + port.isOpen.toString());
+    if ( !port.isOpen ) {
+        port.open();
+        await sleep(2000);
+    } else {
+        console.log("...port is already open...");
+    }
 
     var app = require('../app');
     var io = app.io;
@@ -350,27 +391,34 @@ GatewaySchema.statics.get_gateway_xbee_mac = async function (port) {
 
     port.flush();
 
-    this_socket.emit('data', "<br>>+++ [Enter command mode] (2000ms)<br>");
-    port.write("+++");
-    await sleep(2000);
+    //this_socket.emit('data', "<br>>+++ [Enter command mode] (2000ms)<br>");
+    //port.write("+++");
+    //await sleep(2000);
+    await XBee.EnterCommandMode(port, this_socket);
+    //await sleep(2000); // we need this here for synchronous execution -- or can await above
 
-    this_socket.emit('data', ">atsl (100ms)<br>");
-    port.write("atsl\r\n");
-    await sleep(100);
+    //this_socket.emit('data', ">atsl (100ms)<br>");
+    //port.write("atsl\r\n");
+    //await sleep(100);
+    await XBee.IssueAtCommand(port, this_socket, "atsl"); // default timeoutms is 100 - this is ok
 
-    this_socket.emit('data', ">atsh (100ms)<br>");
-    port.write("atsh\r\n");
-    await sleep(100);
+    //this_socket.emit('data', ">atsh (100ms)<br>");
+    //port.write("atsh\r\n");
+    //await sleep(100);
+    await XBee.IssueAtCommand(port, this_socket, "atsh"); // default timeoutms is 100 - this is ok
 
+    
     // Destination if any
 
-    this_socket.emit('data', ">atdl (100ms)<br>");
-    port.write("atdl\r\n");
-    await sleep(100);
+    //this_socket.emit('data', ">atdl (100ms)<br>");
+    //port.write("atdl\r\n");
+    //await sleep(100);
+    await XBee.IssueAtCommand(port, this_socket, "atdl");
 
-    this_socket.emit('data', ">atdh (100ms)<br>");
-    port.write("atdh\r\n");
-    await sleep(100);
+    //this_socket.emit('data', ">atdh (100ms)<br>");
+    //port.write("atdh\r\n");
+    //await sleep(100);
+    await XBee.IssueAtCommand(port, this_socket, "atdh");
     
     // Miss ruby yet?
     //@data_ios = []
@@ -384,21 +432,26 @@ GatewaySchema.statics.get_gateway_xbee_mac = async function (port) {
     var maxdios = 8;
     for ( var i = 0; i < maxdios; i++ ) {
         cmd = "atd" + i.toString();
-        this_socket.emit('data', ">" + cmd + " (200ms)<br>");
-        port.write(cmd + "\r\n");
-        await sleep(200);
+        //this_socket.emit('data', ">" + cmd + " (200ms)<br>");
+        //port.write(cmd + "\r\n");
+        //await sleep(200);
+        await XBee.IssueAtCommand(port, this_socket, cmd, 200);
     }
 
+
     // Node discover
-    this_socket.emit('data', ">atnd (100ms)<br>");
-    port.write("atnd\r\n");
-    await sleep(100);
+    //this_socket.emit('data', ">atnd (100ms)<br>");
+    //port.write("atnd\r\n");
+    //await sleep(100);
+    await XBee.IssueAtCommand(port, this_socket, "atnd");
+
     // Is below really necessary?  Just wait some amount of time for data to be returned ... async ...
     var intervalms = 100.0;
     var maxwaittimesec = 10.0;
     var maxwaitintervals = maxwaittimesec * 1000.0 / intervalms; 
+    // TODO create waiting notification output function
     for ( i = 0; i < maxwaitintervals; i++ ) {
-        this_socket.emit('data', "> ... waiting ... interval " + i.toString() + " of " + maxwaitintervals.toString() + "<br>");
+        this_socket.emit('data', "> ... waiting ... interval " + i.toString() + " of " + maxwaitintervals.toString() + "...");
         await sleep(intervalms);
     }
     

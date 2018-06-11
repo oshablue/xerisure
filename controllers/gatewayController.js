@@ -1,4 +1,7 @@
 var Gateway = require('../models/gateway').Gateway;
+//var gateway = new Gateway();
+
+// Gateway is the server itself at this time
 
 
 exports.serial_port_list = function(req, res) {

@@ -34,6 +34,19 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.locals.siteName = "Xerisure";
 app.locals.gateway_socket_id = null;
 
+// Application Serial Port(s)
+// Is there a better way to structure this?
+// We need only one gateway radio serial port object, single item at the top level to prevent re-instantiation at the route handling
+// (e.g.) level.
+// However, it seems at this time not clear how to best add a non-database property of the Gateway model, whether static class level (?)
+// or instance such that the serial port for the gateway is encapsulated within the Gateway model.
+// Either way, in reality, there is, generally (though no absolutely) a single serial port for a gateway PAN radio per gateway (per network
+// is maybe a more likely scenario.
+// ... ok see Gateway Code
+// Pero au meme fois, le server est le gateway maintenant
+//var SerialPort = require('serialport')
+
+
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/gateway', gatewayRouter);
