@@ -18,8 +18,38 @@ block content
   pre(class='preserve-whitespace' class='pre-scrollable')
     p= JSON.stringify(port)
 
-  #dialogue
-  #angle
+  h2 Serial Port Socket Status and Log
+  pre#connection
+  pre#statuslog(class='preserve-whitespace' class='pre-scrollable')
+
+  h2 Gateway Radio Setup Utilities
+  //- https://teamtreehouse.com/library/creating-a-registration-form-with-pug-jade-2
+  #setDestinationRadioMacId
+    h3 Set Destination Radio MAC ID
+    p This has not bearing on setting digital (GPIO) pin states or functions because that is sent via API command (see below)
+    div.form-group
+      label(for='setDestinationRadioMacId') ATDH/L:
+      input#setDestinationRadioMacIdInputTxt.form-control(type='text', placeholder='0013A200 40nnmmpp' name='setDestinationRadioMacIdInputTxt')
+      button#setDestinationRadioMacIdInputBtn.btn.btn-primary
+        | Set Destination Radio MAC ID
+
+  #setDigitalIoByApi
+    h3 Set Digital IO Pin State by API Packet
+    p This tells the state to place the destination radio's pin
+
+    div.form-group
+      label(for='setDigitalIoByApiMacId') Radio MAC ID:
+      input#setDigitalIoByApiMacIdInputTxt.form-control(type='text', placeholder='0013A200 40nnmmpp' name='setDigitalIoByApiMacIdInputTxt')
+
+      label(for='setDigitalIoByApiPinNumberInputTxt') Pin Number (Base 0):
+      input#setDigitalIoByApiPinNumberInputTxt.form-control(type='text', placeholder='0' name='setDigitalIoByApiPinNumberInputTxt')
+
+      label(for='setDigitalIoByApiPinStateInputTxt') Pin State (Function depends on radio configuration and type):
+      input#setDigitalIoByApiPinStateInputTxt.form-control(type='text', placeholder='0' name='setDigitalIoByApiPinStateInputTxt')
+
+      button#setDigitalIoByApiInputBtn.btn.btn-primary
+        | Set Digital IO Pin State
+    
 
   h2 Developer Resources
   ul
