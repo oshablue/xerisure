@@ -17,35 +17,28 @@ var Schema = mongoose.Schema;
 var GatewaySchema = new Schema({
 
   name 			: String,
-  //socket_id     : String // will this break when we use live db connection? or be a speed / io issue?
 
 });
 
 
+//
+// Developer resource links:
+//
 // https://stackoverflow.com/questions/18239358/adding-virtual-variables-to-a-mongoose-schema
-
-//GatewaySchema.virtual('socket_id').get(function() {
-//    return this.__socket_id;
-//}).set(function(id) {
-//    this.__socket_id = id;
-//});
-
-
-
-
+//
 // https://stackoverflow.com/questions/24609991/using-socket-io-in-express-4-and-express-generators-bin-www
+//
+// http://danialk.github.io/blog/2014/04/26/arduino-and-processingjs-and-socketio-in-action/
+//
+// https://node-serialport.github.io/node-serialport/SerialPort.html#open
 
-//var app = require('../app');
-//var app = require('express');
-//var server = require('http').createServer(app);
-//var io = require('socket.io').listen(app.server);
-//console.log(app.server);
 
-//var server = require('http').Server(app);
-//var io = require('socket.io')(server);
 
-//var io = app.io;
-//console.log(io);
+
+
+var SerialPort = require('serialport');
+var port_name;
+var port;
 
 
 
@@ -58,13 +51,11 @@ GatewaySchema.statics.serial_port_list_sync = function () {
     return code;
 
 };
-//exports.serial_port_list = _serial_port_list_sync();
 
 
 
 
 
-//var _serial_port_to_use = function(list_in) {
 GatewaySchema.statics.serial_port_to_use = function (list_in) {
 
     list_in = "" + list_in;
@@ -72,28 +63,16 @@ GatewaySchema.statics.serial_port_to_use = function (list_in) {
     return first_one;
 
 };
-//exports.serial_port_to_use = _serial_port_to_use();
 
 
 
 
 
-
-var SerialPort = require('serialport');
-var port_name;
-var port; /* = new SerialPort(); /*port_name, {
-        baudRate: 9600,
-        autoOpen: false
-    });*/
-
-//var SerialPort = serialport.SerialPort; // also Poller, base, etc.
-// https://node-serialport.github.io/node-serialport/SerialPort.html#open
 
 GatewaySchema.statics.test_serial_as_xbee = function (port_name) {
 
     console.log("Got into test_serial_as_xbee");
 
-    // But wait what about re-starts?  Do we really need this at the app level right now?
     if ( port == null ) {
 
         console.log("port is null, initializing serial port ... for port_name: " + port_name);
@@ -103,42 +82,20 @@ GatewaySchema.statics.test_serial_as_xbee = function (port_name) {
         });
     }
 
-    // Multiple instantiation / serial port lock issues with this in here of course, without proper
-    // object release in life cycle etc. of course
-    //var port = new SerialPort(port_name, {
-    //    baudRate: 9600,
-    //    autoOpen: false
-    //});
-
     var io = require('../app').io;
 
-    // Works
-    //port.on("open", function () {
-    //    console.log('open');
-    //    port.on('data', function(data) {
-    //        console.log(data); // + ' as string: ' + data.toString()); // serialport returns Buffer object as the data
-    //        console.log(data.toString());
-    //    });
-    //});
-
-    // Now try socketed
-    // http://danialk.github.io/blog/2014/04/26/arduino-and-processingjs-and-socketio-in-action/
     port.on('open', function(){
-        // Now server is connected to Arduino
+
         console.log('Serial Port Opened');
 
-        //var lastValue;
-        //io.sockets.on('connection', function (socket) {
         io.sockets.on('connection', function (socket) {
+            
             //Connecting to client 
             console.log('Socket connected');
             socket.emit('connected');
-            //var lastValue;
             console.log(socket.id);
-            //this.socket_id = socket.id; // not an instance method
             var app = require('../app');
             app.locals.gateway_socket_id = socket.id;
-
 
             port.on('data', function(data){
                 socket.emit('data', "<br>" + data.toString().replace("\r","<br>")); 
@@ -146,11 +103,6 @@ GatewaySchema.statics.test_serial_as_xbee = function (port_name) {
                 // or replace with " " (using "" creates a problem)
 
                 console.log(data);
-                //var angle = data[0];
-                //if(lastValue !== angle){
-                    //socket.emit('data', angle);
-                //}
-                //lastValue = angle;
             });
 
             socket.on('join', function(data) {
@@ -192,30 +144,10 @@ GatewaySchema.statics.set_digital_io = async function ( port, macid, pin, state 
     var this_socket = io.sockets.connected[socket_id];
     this_socket.emit('data', "Set Digital IO via API...<br>");    
 
-    // Set local radio to API mode:
-    //serialport.write "+++"
-    //sleep(2)
-    //enter_command_result = serialport.read(3)
-    //
-    //serialport.write("atap1\r\n")
-    //sleep(0.1)
-    //
-    //enter_command_result = serialport.read(3)
-    //
-    //# Exit command mode
-    //serialport.write("atcn\r\n")
-
-    //this_socket.emit('data', "<br>>+++ [Enter command mode] (2000ms)<br>");
-    //port.write("+++");
-    //await sleep(2000);
     await XBee.EnterCommandMode(port, this_socket);
 
-    this_socket.emit('data', ">atap1 (100ms)<br>");
-    port.write("atap1\r\n");
-    await sleep(100);
+    await XBee.IssueAtCommand(port, this_socket, "atap1");
 
-    //this_socket.emit('data', "<br>>atcn [Exit command mode]<br>");
-    //port.write("atcn\r\n");
     await XBee.ExitCommandMode(port, this_socket);
 
     const START_BYTE = 0x7E;
@@ -238,15 +170,6 @@ GatewaySchema.statics.set_digital_io = async function ( port, macid, pin, state 
     bytes[9+8] = (pin.charCodeAt(0));
     bytes[10+8] = (parseInt("0x" + state.substr(0,2)));
 
-
-    //sum = 0x0000
-    //arr.each { |x| sum += x }
-    //#Rails.logger.info "#{sum}"
-    //sum &= 0x00FF
-    //#Rails.logger.info "#{sum}"
-    //#Rails.logger.info "#{0xFF - sum}"
-    //return (0xFF - sum)
-
     var sum = 0x0000;
     for ( var j = 3; j < bytes.length; j++ ) {
         sum += bytes[j];
@@ -257,63 +180,13 @@ GatewaySchema.statics.set_digital_io = async function ( port, macid, pin, state 
     bytes[11+8]= (checksum);
     console.log("Checksum: " + checksum);
 
-    // actually bytes get sent as chr's 
-
-    //for ( i = 0; i < bytes.length; i++ ) {
-    //    bytes[i] = bytes[i]; // hey wait we needed the chr e.g. ruby 65.chr = "A" ... so we could have just sent the above as string/text?
-    //}
-
     this_socket.emit('data', ">(bytes array for api packet) (1000ms)<br>");
     console.log(JSON.stringify(bytes.slice(0, 11+17)));
     port.write(bytes.slice(0, 11+17));
     await sleep(1000);
 
-
-    // TODO obviously move and DRY
-    /*
-    start_byte = START_BYTE
-    frame_type = FRAME_TYPE
-    
-    bytes = []
-    bytes << start_byte
-    bytes << 0x00       # length MSB - bytes between length and checksum
-    bytes << 0x10       # length LSB - bytes between length and checksum
-    bytes << frame_type
-    bytes << 0x01       # frame ID - set to 0 for no response
-    bytes << mac_as_string.scan(/../).map { |x| x.to_i(16) }
-    bytes.flatten!
-    bytes << 0xFF       # 16-bit address
-    bytes << 0xFE       # 16-bit address
-    bytes << 0x02       # Apply Changes: true = 0x02 - needed for changes to take effect
-    bytes << "D".unpack('C*')   # Send the DIO "D" before the pin number
-    bytes << pin_as_string.unpack('C*') # Send the string pin number as the ASCII char value
-    bytes << value_as_hex      # 0x04 active low, 0x05 active high
-    bytes.flatten!
-    checksum_byte = xbee_checksum(bytes[3..-1])
-    bytes << checksum_byte
-    
-    Rails.logger.info "#{bytes.inspect}"
-    
-    bytes_to_send = bytes.map{|b| b.chr}.join.to_s #to_s not needed most likely
-    
-    portlist = `ls /dev/ttyUSB*`  # TODO split etc.
-    port_to_use = portlist.split("\n")[0].gsub("\n","") # Use the first for now - TODO select and store
-    
-    serialport = Serial.new port_to_use
-    
-    # purge
-    b = serialport.getbyte
-    while !b.nil?
-      b = serialport.getbyte
-    end
-    
-    serialport.write(bytes_to_send)
-    sleep(0.1)
-    */
-
-
-
 };
+
 
 
 
@@ -326,21 +199,12 @@ GatewaySchema.statics.set_destination_radio_mac_id = async function ( port, maci
     var this_socket = io.sockets.connected[socket_id];
     this_socket.emit('data', "Set destination radio mac id...<br>");
 
-    //this_socket.emit('data', "<br>>+++ [Enter command mode] (2000ms)<br>");
-    //port.write("+++");
-    //await sleep(2000);
     await XBee.EnterCommandMode(port, this_socket);
 
-    this_socket.emit('data', ">atdh " + macid.substr(0,8) + " (100ms)<br>");
-    port.write("atdh " + macid.substr(0,8) + "\r\n");
-    await sleep(100);
+    await XBee.IssueAtCommand(port, this_socket, "atdh " + macid.substr(0,8));
 
-    this_socket.emit('data', ">atdl " + macid.substr(8,8) + " (100ms)<br>");
-    port.write("atdl " + macid.substr(8,8) + "\r\n");
-    await sleep(100);
+    await XBee.IssueAtCommand(port, this_socket, "atdl " + macid.substr(8,8));
 
-    //this_socket.emit('data', "<br>>atcn [Exit command mode]<br>");
-    //port.write("atcn\r\n");
     await XBee.ExitCommandMode(port, this_socket);
 
 };
@@ -391,33 +255,17 @@ GatewaySchema.statics.get_gateway_xbee_mac = async function (port) {
 
     port.flush();
 
-    //this_socket.emit('data', "<br>>+++ [Enter command mode] (2000ms)<br>");
-    //port.write("+++");
-    //await sleep(2000);
     await XBee.EnterCommandMode(port, this_socket);
-    //await sleep(2000); // we need this here for synchronous execution -- or can await above
-
-    //this_socket.emit('data', ">atsl (100ms)<br>");
-    //port.write("atsl\r\n");
-    //await sleep(100);
+    
     await XBee.IssueAtCommand(port, this_socket, "atsl"); // default timeoutms is 100 - this is ok
 
-    //this_socket.emit('data', ">atsh (100ms)<br>");
-    //port.write("atsh\r\n");
-    //await sleep(100);
     await XBee.IssueAtCommand(port, this_socket, "atsh"); // default timeoutms is 100 - this is ok
 
     
     // Destination if any
 
-    //this_socket.emit('data', ">atdl (100ms)<br>");
-    //port.write("atdl\r\n");
-    //await sleep(100);
     await XBee.IssueAtCommand(port, this_socket, "atdl");
 
-    //this_socket.emit('data', ">atdh (100ms)<br>");
-    //port.write("atdh\r\n");
-    //await sleep(100);
     await XBee.IssueAtCommand(port, this_socket, "atdh");
     
     // Miss ruby yet?
@@ -432,17 +280,11 @@ GatewaySchema.statics.get_gateway_xbee_mac = async function (port) {
     var maxdios = 8;
     for ( var i = 0; i < maxdios; i++ ) {
         cmd = "atd" + i.toString();
-        //this_socket.emit('data', ">" + cmd + " (200ms)<br>");
-        //port.write(cmd + "\r\n");
-        //await sleep(200);
         await XBee.IssueAtCommand(port, this_socket, cmd, 200);
     }
 
 
     // Node discover
-    //this_socket.emit('data', ">atnd (100ms)<br>");
-    //port.write("atnd\r\n");
-    //await sleep(100);
     await XBee.IssueAtCommand(port, this_socket, "atnd");
 
     // Is below really necessary?  Just wait some amount of time for data to be returned ... async ...
@@ -451,56 +293,13 @@ GatewaySchema.statics.get_gateway_xbee_mac = async function (port) {
     var maxwaitintervals = maxwaittimesec * 1000.0 / intervalms; 
     // TODO create waiting notification output function
     for ( i = 0; i < maxwaitintervals; i++ ) {
-        this_socket.emit('data', "> ... waiting ... interval " + i.toString() + " of " + maxwaitintervals.toString() + "...");
+        this_socket.emit(
+            'data', 
+            "> ... waiting ... interval " + i.toString() + " of " + maxwaitintervals.toString() + "...");
         await sleep(intervalms);
     }
     
-
-    this_socket.emit('data', "<br>>atcn [Exit command mode]<br>");
-    port.write("atcn\r\n");
-
-    /* From the RoR port (prior draft and testing basics)
-    # purge
-    b = serialport.getbyte
-    while !b.nil?
-      b = serialport.getbyte
-    end
-    
-    serialport.write "+++"
-    sleep(2)
-    @enter_command_result = serialport.read(3)
-    
-    serialport.write("atsl\r\n")
-    sleep(0.1)
-    @data_atsl = serialport.read(8)
-    
-    serialport.write("atsh\r\n")
-    sleep(0.1)
-    @data_atsh = serialport.read(8)
-    @data_atsh.gsub!(/\W/,'')   # Remove non alphanumeric, etc. e.g. sometimes 0013A200 will be printed as ??13A200 and prep for rjust
-
-    serialport.write("atdl\r\n")
-    sleep(0.1)
-    @data_atdl = serialport.read(8)
-    
-    serialport.write("atdh\r\n")
-    sleep(0.1)
-    @data_atdh = serialport.read(8)
-    @data_atdh.gsub!(/\W/,'') 
-
-    @data_ios = []
-    (0..7).each do |i|
-      cmd = "atd#{i.to_s}\r\n"
-      serialport.write(cmd)
-      sleep(0.2)
-      @data_ios << serialport.read(2).gsub!(/\W/,'')
-    end
-    
-    # Exit command mode
-    serialport.write("atcn\r\n")
-    sleep(1)
-
-    */    
+    await XBee.ExitCommandMode(port, this_socket);
 
 };
 

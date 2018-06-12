@@ -3,9 +3,11 @@
 //
 
 
+//
 // No Schema yet
 // Primarily for XBee function calls at Class level (statics)
 // 
+
 
 var Utils = require('../lib/utils');
 var sleep = Utils.sleep;
@@ -18,6 +20,7 @@ var XBee = function(data) {
     // Could include e.g.:
     // this.data.macid = data.macid; // etc.
 }
+
 
 XBee.prototype.data = {}
 
@@ -41,7 +44,6 @@ XBee.ExitCommandMode = async function(port, clientSocket) {
         defaultClientSocketChannel, 
         "<br>>atcn [Exit command mode] (100ms)<br>");
     port.write("atcn\r\n");
-    //await sleep(100);
 
 } 
 
@@ -53,7 +55,6 @@ XBee.IssueAtCommand = async function(port, clientSocket, cmd, timeoutms = 100) {
         "<br>>" + cmd + " (" + timeoutms.toString() + "ms)<br>");
     port.write(cmd + "\r\n");
     await sleep(timeoutms);
-    
 
 }
 
