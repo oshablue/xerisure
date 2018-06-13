@@ -4,26 +4,41 @@ block scripts
     script(src='https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js')
     script(src='/javascripts/socketwork.js')
 
-block content
+block title
   h1= siteName + ' :: Gateway'
   p Welcome to the #{siteName} Gateway Page
   p This page shows information about the gateway that controls communications to all of the sensor monitoring nodes.  You might have one or many gateways.  At this time, this is a single gateway that control your local sensor network.
 
-  h2 Serial Port List
-  h3 Available serial ports on this gateway
-  p= serialPortList
-  h3 Port to use:
-  p= serialPortToUse
-  h3 Port after init:
-  pre(class='preserve-whitespace' class='pre-scrollable')
-    p= JSON.stringify(port)
 
+block content
+  
   h2 Serial Port Socket Status and Log
   pre#connection
-  pre#statuslog(class='preserve-whitespace' class='pre-scrollable')
+  pre#statuslog(class='preserve-whitespace pre-scrollable')
+    |Status Log<br>
 
-  h2 Gateway Radio Setup Utilities
+  h2 Gateway Radio Setup and PAN Utilities
   //- https://teamtreehouse.com/library/creating-a-registration-form-with-pug-jade-2
+
+  button#getGatewayRadioMacIdInfo.btn.btn-primary
+    | Get Gateway Radio MAC ID
+
+  button#getGatewayRadioSerialLinkDestinationMacIdInfo.btn.btn-primary
+    | Get Serial Destination Radio Mac ID
+
+  button#doNodeDiscover.btn.btn-primary
+    | Node Discover
+
+  button#getGatewayRadioDios.btn.btn-primary
+    | Get Gateway Radio DIOs
+
+  br
+  div.form-group
+    input#remoteRadioMacIdInputTxt.form-control(type='text', placeholder='0013A200 40nnmmpp')
+    button#getRemoteRadioDios.btn.btn-primary
+      | Get Remote Radio DIOs
+
+
   #setDestinationRadioMacId
     h3 Set Destination Radio MAC ID
     p This has not bearing on setting digital (GPIO) pin states or functions because that is sent via API command (see below)
@@ -50,6 +65,20 @@ block content
       button#setDigitalIoByApiInputBtn.btn.btn-primary
         | Set Digital IO Pin State
     
+
+
+  h2 Serial Port List
+  h3 Available serial ports on this gateway
+  pre
+    p= serialPortList
+  h3 Port to use:
+  pre  
+    p= serialPortToUse
+  h3 Port after init:
+  pre(class='preserve-whitespace pre-scrollable small')
+    p= JSON.stringify(port)
+
+
 
   h2 Developer Resources
   ul

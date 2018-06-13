@@ -6,10 +6,13 @@ html(lang='en')
     title= siteName
     meta(charset='utf-8')
     meta(name='viewport', content='width=device-width, initial-scale=1')
-    link(rel='stylesheet', href='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css')
+    //link(rel='stylesheet', href='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css')
+    link(rel='stylesheet' href='https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css')
     block scripts
-        script(src='https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js')
-        script(src='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js')
+        //script(src='https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js')
+        //script(src='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js')
+        script(src='https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js')
+        script(src='https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js')
     link(rel='stylesheet', href='/stylesheets/style.css')
 
   body
@@ -24,6 +27,32 @@ html(lang='en')
                 a(href='/gateway') Gateway
               li 
                 a(href='/radio') Radios
+        div(class='col-sm-10')
+          block title
+
+      div(class='row align-items-end')
+        div(class='col-sm-2')
+            // TODO update indents
+            // TODO move to separate block file
+            #current-system-status(class='alert alert-success mb-0 small')
+              h5(class='alert-heading') Current System Status
+              hr
+              p(class='mb-0').
+                <strong>Online Items:</strong><br>
+                <br>
+                Controllers:<br>
+                1 Gateway<br>
+                8 Valves<br>
+                <br> 
+                Sensors:<br>       
+                2 Flow<br>     
+                4 Moisture
+              hr
+              h6 Water is:
+                div(class=('text-center'))
+                  span(class='badge badge-secondary mt-1') 
+                    h5 Off
+
                 
         div(class='col-sm-10')
           block content

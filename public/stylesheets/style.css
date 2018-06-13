@@ -6,3 +6,7 @@
 pre.preserve-whitespace {
     white-space: pre-wrap;
 }
+pre {
+    background-color: #ddd;
+    font-size: 0.6em;
+}
