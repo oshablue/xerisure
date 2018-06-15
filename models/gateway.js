@@ -38,7 +38,8 @@ var GatewaySchema = new Schema({
 var SerialPort = require('serialport');
 var port_name;
 var port;
-
+var apiPacketString;
+var apiStringTrans;
 
 /* Bad boys and girls! No sync! */
 // Use .methods for instance functions
@@ -174,6 +175,30 @@ GatewaySchema.statics.setup_serial_port_and_socket = function (port_name) {
             // was replace with <br> // lines terminated with 0x0d
             // or replace with " " (using "" creates a problem)
 
+            // API type data
+            // TODO Complete API packet parsing implementation and DRY/Encap etc.
+            var s = " ";
+            var bufAsString = " ";
+            for ( var i = 0; i < data.length; i++ ) {
+              s = "0x" + ('0' + (data[i] & 0xFF).toString(16)).slice(-2);
+              bufAsString += " " + s;
+              if ( s == '0x7e' ) {
+                socket.emit('data', "<br>Flush any old API Packet: <br>" + apiPacketString + "<br>");
+                socket.emit('data', apiStringTrans + "<br>");
+                apiPacketString = s;
+                apiStringTrans = '----';
+              } else {
+                apiPacketString += " " + s;
+                if ( parseInt(s) > 32 && parseInt(s) < 127 ) {
+                  apiStringTrans += " " + "   " + String.fromCharCode(parseInt(s));
+                } else {
+                  apiStringTrans += " " + s;
+                } 
+              }
+            }
+            socket.emit('data', bufAsString + "<br>");
+            // Alert: Until complete API is implemented, we'll be one buffer short so request one extra frame etc.
+
             console.log(data);
         });
 
@@ -282,7 +307,7 @@ GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, stat
     bytes[11+8]= (checksum);
     console.log("Checksum: " + checksum);
 
-    this_socket.emit('data', ">(bytes array for api packet) (1000ms)<br>");
+    this_socket.emit('data', ">(Gateway.set_digital_io (1000ms)<br>");
     console.log(JSON.stringify(bytes.slice(0, 11+17)));
     port.write(bytes.slice(0, 11+17));
     await sleep(1000);
@@ -354,24 +379,6 @@ GatewaySchema.statics.get_gateway_xbee_mac = async function (socket) {
 
     await XBee.IssueAtCommand(port, socket, "atsh"); // default timeoutms is 100 - this is ok
 
-
-    // Keeping test code here for reference for getting local gateway radio DIOs
-    // Miss ruby yet?
-    //@data_ios = []
-    //(0..7).each do |i|
-    //  cmd = "atd#{i.to_s}\r\n"
-    //  serialport.write(cmd)
-    //  sleep(0.2)
-    //  @data_ios << serialport.read(2).gsub!(/\W/,'')
-    //end
-
-    /*var maxdios = 8;
-    for ( var i = 0; i < maxdios; i++ ) {
-        cmd = "atd" + i.toString();
-        await XBee.IssueAtCommand(port, this_socket, cmd, 200);
-    }*/
-
-
     await XBee.ExitCommandMode(port, socket);
 
 };
@@ -424,6 +431,8 @@ GatewaySchema.statics.get_remote_radio_dios = async function (socket, macid) {
 
     // TODO - API logic (pre/before hand) - only if needed?
     // TODO - implement then packet parsing is required to retrieve the results and extract the pin value
+    // TODO - fancy schmancy update to received data parsing for API packets etc.
+
 
     await XBee.EnterCommandMode(port, socket);
 
@@ -431,44 +440,26 @@ GatewaySchema.statics.get_remote_radio_dios = async function (socket, macid) {
 
     await XBee.ExitCommandMode(port, socket);
 
-    socket.emit('data', 'This function is not yet implemented. Please see code');
+    socket.emit('data', 'Put gateway xbee into API(1) mode via AT commands.  Preparing for remote radio comms via API packets for remote radio MAC ID ' + macid);
+    // socket.emit('data', 'This function is not yet implemented. Please see code');
 
-    return;
-
-    const START_BYTE = 0x7E;
-    const FRAME_TYPE = 0x17;
-
-    var bytes = new Uint8Array(100);
-    bytes[0] = (START_BYTE);
-    bytes[1] = (0x00);
-    bytes[2] = (0x10);
-    bytes[3] = (FRAME_TYPE);
-    bytes[4] = (0x01);
-    for ( var i = 0; i < macid.length/2; i++ ) {
-        bytes[5+i] = (parseInt("0x" + macid.substr(i*2,2))); // to_i(16)
-        
+    // TODO max DIO number ... somewhere -- XBee module?
+    for ( var i = 0; i < 9; i++ ) {
+      cmd = "D" + i.toString();
+      await XBee.SendApiRemoteAtPacket(port, socket, macid, cmd, 50);
+      // These can be all queued up and sent directly - the responses will come back over time
+  
+      // Now we could detach the data event (flow mode for the serial port) and do explicit read w/ timeout
+      // or alternate method ...
     }
-    bytes[5+8] = (0xFF);
-    bytes[6+8] = (0xFE);
-    bytes[7+8] = (0x02);
-    bytes[8+8] = ("D".charCodeAt(0));
-    bytes[9+8] = (pin.charCodeAt(0));
-    bytes[10+8] = (parseInt("0x" + state.substr(0,2)));
 
-    var sum = 0x0000;
-    for ( var j = 3; j < bytes.length; j++ ) {
-        sum += bytes[j];
-    }
-    sum &= 0x00FF;
-    var checksum = 0xFF - sum;
 
-    bytes[11+8]= (checksum);
-    console.log("Checksum: " + checksum);
-
-    socket.emit('data', ">(bytes array for api packet) (1000ms)<br>");
-    console.log(JSON.stringify(bytes.slice(0, 11+17)));
-    port.write(bytes.slice(0, 11+17));
-    await sleep(1000);
+    // Returned API packet data
+    // Data section
+    // Will show the command, command status, command value
+    // So if we see: D705 (0x44 0x37 0x00 0x05 = "D" "7" (0x00) (0x05) so No error = 0x00 and Value = 0x05
+    // To test: "7".charCodeAt(0).toString(16) => 37 = 0x37
+    //
 
 };
 

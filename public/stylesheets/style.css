@@ -10,3 +10,16 @@ pre {
     background-color: #ddd;
     font-size: 0.6em;
 }
+.ctrls-with-margins button, input {
+  margin: 2px;
+  max-width: 99%; /* right side of inputs gets pushed right up to border otherwise */
+}
+/* .class1 > .class2 would be first child only */
+.ctrls-with-margins .form-group {
+  padding: 2px;
+  border-style: solid;
+  border-color: #eee;
+  border-width: 1px;
+  border-radius: 0.35rem;
+}
+
