@@ -147,6 +147,14 @@ XBee.SendApiRemoteAtPacket = async function(port, clientSocket, macid, cmd, time
 
 }
 
+XBee.ParseStringForMacIds = function ( stringIn ) {
+
+  r = stringIn.match(/FFFE\r0013A200\r[0-9A-F]{8}/g)
+
+  return r;
+
+}
+
 
 
 

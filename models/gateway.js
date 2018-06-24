@@ -40,6 +40,7 @@ var port_name;
 var port;
 var apiPacketString;
 var apiStringTrans;
+var stringBuffer = "";
 
 /* Bad boys and girls! No sync! */
 // Use .methods for instance functions
@@ -70,6 +71,17 @@ GatewaySchema.statics.emit_delayed_socket_message = async function ( socket, cha
     await sleep(delay_ms);
     socket.emit(channel, data);
     console.log("emit_delayed_socket_message fired with channel " + channel + " socket id: " + socket.id);
+
+}
+
+
+
+
+GatewaySchema.statics.dump_string_buffer = function ( socket ) {
+
+    socket.emit('data', "<br><br>String Buffer Dump: <br>");
+    socket.emit('data', stringBuffer);
+    stringBuffer = "";
 
 }
 
@@ -197,6 +209,9 @@ GatewaySchema.statics.setup_serial_port_and_socket = function (port_name) {
               }
             }
             socket.emit('data', bufAsString + "<br>");
+
+            stringBuffer += data.toString();              // Accumulate between data received until buffer is dumped, etc.
+
             // Alert: Until complete API is implemented, we'll be one buffer short so request one extra frame etc.
 
             console.log(data);
@@ -516,6 +531,17 @@ GatewaySchema.statics.do_node_discover = async function (socket) {
     }
 
     await XBee.ExitCommandMode(port, socket);
+
+    setTimeout(function(){Gateway.dump_string_buffer(socket)}, 15000); // clears buffer after dump
+    setTimeout(function(){
+        r = XBee.ParseStringForMacIds(stringBuffer);
+        setTimeout(function() {
+          socket.emit('data', "<br><br>MAC IDs parsed:<br>");
+          for ( let s of r ) {
+              socket.emit('data', s.replace(/\W/g,"") + "<br>"); 
+          }
+        }, 1000); // setTimeout to print after the screen dump, since buffer gets cleared ... TODO cleanup
+    }, 14000);
 
 };
 
