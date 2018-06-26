@@ -537,9 +537,13 @@ GatewaySchema.statics.do_node_discover = async function (socket) {
         r = XBee.ParseStringForMacIds(stringBuffer);
         setTimeout(function() {
           socket.emit('data', "<br><br>MAC IDs parsed:<br>");
+          var d = "";
           for ( let s of r ) {
-              socket.emit('data', s.replace(/\W/g,"") + "<br>"); 
+              var t = s.replace(/\W/g,"") + "<br>";
+              socket.emit('data', t);
+              d += t; 
           }
+          socket.emit('macids', d);
         }, 1000); // setTimeout to print after the screen dump, since buffer gets cleared ... TODO cleanup
     }, 14000);
 

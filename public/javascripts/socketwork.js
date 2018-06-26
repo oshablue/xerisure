@@ -16,11 +16,14 @@ var btnDoNodeDiscover;
 var btnGetRemoteRadioDios
 var txtRemoteRadioMacId;
 
+var divMacIds;
+
 // NOTE: Intentional explicit function setup, with non-DRY code for clarity (presumed...)
 
 window.onload = function () {
     connection = document.getElementById('connection');
     statuslog = document.getElementById('statuslog');
+    divMacIds = document.getElementById('macIds');
     btnSetDestinationMacId = document.getElementById('setDestinationRadioMacIdInputBtn');
     txtSetDestinationMacId = document.getElementById('setDestinationRadioMacIdInputTxt');
 
@@ -100,3 +103,10 @@ socket.on('connect', function(data) {
   connection.innerHTML += "<br>socket.on('connect') [next: emit join to server]<br>" + socket.id + "<br>";
   socket.emit('join', 'Client emit: client socket.on(connect) fcn fired'); // may not go through?
 });
+
+// TODO -- this belongs in gateway page only socket work:
+socket.on('macids', function(data) {
+  macIds.innerHTML = data;
+  $(macIds).show();
+});
+
