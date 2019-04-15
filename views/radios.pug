@@ -1,0 +1,30 @@
+extends layout
+
+block scripts
+
+
+block title
+  h1= siteName
+  p #{siteName} stored radios listing
+  hr
+
+block content
+  // https://getbootstrap.com/docs/4.1/content/figures/
+  div(class='card')
+    img(class='card-img-top' src='')
+    div(class='card-body')
+      #summary-chart-title
+        h3(class='card-title') Radios Management Interface
+        h4(class='card-subtitle') Currently: Listing stored radios from database
+      #summary-chart
+        // Div to hold the summary chart/graph
+      #radios_list
+        // TODO list as links for editing descriptions etc.
+        #{JSON.stringify(radios_list)}
+
+
+
+
+
+
+  script.

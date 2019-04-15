@@ -5,6 +5,7 @@ var btnSetDestinationMacId;
 var txtSetDestinationMacId;
 
 var btnSetDigitalIo;
+var btnGetDigitalIo;
 var txtSetDigitalIoMacId;
 var txtSetDigitalIoPin;
 var txtSetDigitalIoPinState;
@@ -13,10 +14,15 @@ var btnGetGatewayRadioMacIdInfo;
 var btnGetGatewayRadioSerialLinkDestinationMacIdInfo;
 var btnGetGatewayRadioDios;
 var btnDoNodeDiscover;
+var btnStoreNdRadiosInDb;
+var btnGetDbRadioMacIds;
+var btnPopDbRadioMacIds;
 var btnGetRemoteRadioDios
 var txtRemoteRadioMacId;
 
 var divMacIds;
+var divMacIdsFromDb;
+var divGetDioPinState;
 
 // NOTE: Intentional explicit function setup, with non-DRY code for clarity (presumed...)
 
@@ -24,20 +30,27 @@ window.onload = function () {
     connection = document.getElementById('connection');
     statuslog = document.getElementById('statuslog');
     divMacIds = document.getElementById('macIds');
+    divMacIdsFromDb = document.getElementById('macIdsFromDb');
+    divGetDioPinState = document.getElementById('getDioPinState');
+
     btnSetDestinationMacId = document.getElementById('setDestinationRadioMacIdInputBtn');
     txtSetDestinationMacId = document.getElementById('setDestinationRadioMacIdInputTxt');
 
     btnSetDigitalIo = document.getElementById('setDigitalIoByApiInputBtn');
+    btnGetDigitalIo = document.getElementById('getDigitalIoByApiInputBtn');
     txtSetDigitalIoMacId = document.getElementById('setDigitalIoByApiMacIdInputTxt');
     txtSetDigitalIoPin = document.getElementById('setDigitalIoByApiPinNumberInputTxt');
     txtSetDigitalIoPinState = document.getElementById('setDigitalIoByApiPinStateInputTxt');
 
     btnGetGatewayRadioMacIdInfo = document.getElementById('getGatewayRadioMacIdInfo');
-    btnGetGatewayRadioSerialLinkDestinationMacIdInfo = 
+    btnGetGatewayRadioSerialLinkDestinationMacIdInfo =
         document.getElementById('getGatewayRadioSerialLinkDestinationMacIdInfo');
+    btnGetDbRadioMacIds = document.getElementById('getDbRadioMacIds');
+    btnPopDbRadioMacIds = document.getElementById('popDbRadioMacIds');
 
     btnGetGatewayRadioDios = document.getElementById('getGatewayRadioDios');
     btnDoNodeDiscover = document.getElementById('doNodeDiscover');
+    btnStoreNdRadiosInDb =  document.getElementById('storeNdRadiosInDb');
 
     txtRemoteRadioMacId = document.getElementById('remoteRadioMacIdInputTxt');
     btnGetRemoteRadioDios = document.getElementById('getRemoteRadioDios');
@@ -48,7 +61,12 @@ window.onload = function () {
     }, false);
 
     btnSetDigitalIo.addEventListener("click", function() {
-        socket.emit('client_set_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
+      //console.log("set_digital_io" +  txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
+      socket.emit('client_set_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
+    }, false);
+
+    btnGetDigitalIo.addEventListener("click", function() {
+      socket.emit('client_get_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value);
     }, false);
 
     btnGetGatewayRadioMacIdInfo.addEventListener("click", function() {
@@ -69,6 +87,44 @@ window.onload = function () {
 
     btnGetGatewayRadioDios.addEventListener("click", function() {
         socket.emit('client_get_gateway_radio_dios');
+    }, false);
+
+    btnGetDbRadioMacIds.addEventListener("click", function() {
+        socket.emit('client_get_db_radio_mac_ids');
+    }, false);
+
+    btnPopDbRadioMacIds.addEventListener("click", function() {
+        socket.emit('client_pop_db_radio_mac_ids');
+    }, false);
+
+    // TODO this is obivously bad for production:
+    btnStoreNdRadiosInDb.addEventListener("click", function(e) {
+      //var sel = document.getElementById('macIdsSelSel').innerHTML;
+      //console.log(sel); // will go to browser console
+      var sel = document.getElementById('macIdsSelSel');
+      var i;
+      var res = [];
+      var mac;
+      var nameraw, name;
+      for ( i=0; i < sel.length; i++) {
+        mac = sel.options[i].value;
+        nameraw = sel.options[i].text;
+        name = nameraw.match(/\([\w\d\s]*\)/);
+        if (name) {
+          name = name[0].replace(/^\(/, "").replace(/\)$/, "");
+        } else {
+          name = nameraw || "";
+        }
+        if ( mac != -1 ) {
+          res.push({
+            "mac" : mac,
+            "name" : name,
+            "description" : ""
+          });
+        }
+      }
+      //console.log(res);
+      socket.emit('client_store_nd_radios_in_db', res);
     }, false);
 
 }
@@ -109,4 +165,19 @@ socket.on('macids', function(data) {
   macIds.innerHTML = data;
   $(macIds).show();
 });
-
+socket.on('macidssel', function(data) {
+  macIdsSel.innerHTML = data;
+  $(macIdsSel).show();
+});
+socket.on('macIdsFromDb', function(data) {
+  divMacIdsFromDb.innerHTML = data;
+  $(macIdsFromDb).show();
+});
+socket.on('getDioPinState', function(data) {
+  divGetDioPinState.innerHTML = data;
+  $(getDioPinState).show();
+  $(getDioPinState).css('background-color','green');
+  setTimeout(function(){
+    $(getDioPinState).css('background-color','white'); // TODO really need comparison for green/red etc as this builds out
+  }, 2000);
+});

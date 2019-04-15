@@ -11,18 +11,71 @@ block title
 
 
 block content
-  
+
+
+  #setDigitalIoByApi(class='card pl-2')
+    h3 Set Digital IO Pin State by API Packet
+    p This tells the state to place the destination radio's pin
+
+    div.form-group
+      p
+        | Available Radio MAC IDs from Node Discover or Database which
+        | defaults to loading the database values on socket connect:
+        div#macIdsSel
+          select#macIdsSelSel(name="macIdsSelSel")
+            option(value=-1) #{"Please run node discover"}
+
+      label(for='setDigitalIoByApiMacId') Radio MAC ID:
+      input#setDigitalIoByApiMacIdInputTxt.form-control(type='text', placeholder='0013A200 40nnmmpp' name='setDigitalIoByApiMacIdInputTxt')
+
+      label(for='setDigitalIoByApiPinNumberInputTxt') Pin Number (Base 0):
+      input#setDigitalIoByApiPinNumberInputTxt.form-control(type='text', placeholder='0' name='setDigitalIoByApiPinNumberInputTxt')
+
+      label(for='setDigitalIoByApiPinStateInputTxt') Pin State (Function depends on radio configuration and type):
+      input#setDigitalIoByApiPinStateInputTxt.form-control(type='text', placeholder='0' name='setDigitalIoByApiPinStateInputTxt')
+
+      div#getDioPinStateContainer
+        | State for selected pin:
+        div#getDioPinState(style={display: 'none'})
+
+      button#setDigitalIoByApiInputBtn.btn.btn-primary
+        | Set Digital IO Pin State
+
+      button#getDigitalIoByApiInputBtn.btn.btn-primary
+        | Get Digital IO Pin State
+
+
+
   h2 Serial Port Socket Status and Log
   pre#connection
   pre#statuslog(class='preserve-whitespace pre-scrollable')
     |Status Log<br>
 
+
   div(class='card pl-2')
-    h2 MAC IDs 
+    h2 MAC IDs
     h3 of Available PAN XBee Radios from ND
+    h4 (This will populate the MAC ID select)
     div#macIds(style={display: 'none'})
       |(Run Node Discover to Populate This Section)
-    
+    div(class="ctrls-with-margins")
+      button#doNodeDiscover.btn.btn-primary
+        | Node Discover
+      button#storeNdRadiosInDb.btn.btn-primary
+        | Store ND Radios in Database
+
+
+  div(class='card pl-2')
+    h2 MAC IDs
+    h3 of PAN XBee Radios in Database
+    div#macIdsFromDb(style={display: 'none'})
+      |(Run DB Read to Populate This Section)
+    div(class="ctrls-with-margins")
+      button#getDbRadioMacIds.btn.btn-primary
+        | Get Database Radio MAC IDs
+      button#popDbRadioMacIds.btn.btn-primary
+        | Populate Db Radio MAC IDs (into Radio select drop-down)
+
 
   h2 Gateway Radio Setup and PAN Utilities
   //- https://teamtreehouse.com/library/creating-a-registration-form-with-pug-jade-2
@@ -33,9 +86,6 @@ block content
 
     button#getGatewayRadioSerialLinkDestinationMacIdInfo.btn.btn-primary
       | Get Serial Destination Radio Mac ID
-
-    button#doNodeDiscover.btn.btn-primary
-      | Node Discover
 
     button#getGatewayRadioDios.btn.btn-primary
       | Get Gateway Radio DIOs
@@ -56,23 +106,8 @@ block content
         button#setDestinationRadioMacIdInputBtn.btn.btn-primary
           | Set Destination Radio MAC ID
 
-    #setDigitalIoByApi
-      h3 Set Digital IO Pin State by API Packet
-      p This tells the state to place the destination radio's pin
 
-      div.form-group
-        label(for='setDigitalIoByApiMacId') Radio MAC ID:
-        input#setDigitalIoByApiMacIdInputTxt.form-control(type='text', placeholder='0013A200 40nnmmpp' name='setDigitalIoByApiMacIdInputTxt')
 
-        label(for='setDigitalIoByApiPinNumberInputTxt') Pin Number (Base 0):
-        input#setDigitalIoByApiPinNumberInputTxt.form-control(type='text', placeholder='0' name='setDigitalIoByApiPinNumberInputTxt')
-
-        label(for='setDigitalIoByApiPinStateInputTxt') Pin State (Function depends on radio configuration and type):
-        input#setDigitalIoByApiPinStateInputTxt.form-control(type='text', placeholder='0' name='setDigitalIoByApiPinStateInputTxt')
-
-        button#setDigitalIoByApiInputBtn.btn.btn-primary
-          | Set Digital IO Pin State
-      
 
 
   h2 Serial Port List
@@ -80,7 +115,7 @@ block content
   pre
     p= serialPortList
   h3 Port to use:
-  pre  
+  pre
     p= serialPortToUse
   h3 Port after init:
   pre(class='preserve-whitespace pre-scrollable small')
@@ -90,9 +125,9 @@ block content
 
   h2 Developer Resources
   ul
-    li 
+    li
       a(href='https://developer.mozilla.org/en-US/docs/Learn/Server-side/Express_Nodejs/Displaying_data/Template_primer') NodeJS Mozilla on Templates (pug)
-    li 
+    li
       a(href='https://developer.mozilla.org/en-US/docs/Learn/Server-side/Express_Nodejs/Displaying_data/Home_page') Node.js Mozilla on putting data into templates and pages
     li
       a(href='http://theholmesoffice.com/getting-ready-for-scalability-creating-an-mvc-framework-for-our-node-js-page/') Holmes Office on basic MVC with Node.js including a static model for simple test data
@@ -104,9 +139,9 @@ block content
       a(href='http://danialk.github.io/blog/2014/04/26/arduino-and-processingjs-and-socketio-in-action/') Arduino Node.js and Socket.io
 
   h2 Serial Port Access
-  p. 
+  p.
     You may need to make sure that the user running the Node.js process(es) has permissions to access the serial port.  See e.g. #[a(href='https://help.ubuntu.com/community/SerialConsoleHowto') Ubuntu on Serial Port access] about user and group access checks and updates.  For the Ubuntu 16.nnnnn installation here, during initial development, the following was needed:
-  
+
   pre
     |ls /dev/ttyUSB0 (ok)
     br
@@ -123,7 +158,10 @@ block content
     li
     li
 
-    
 
-    
-
+  script(type="text/javascript").
+    function macIdsSelFcn() {
+      var sel = $('select[name="macIdsSelSel"]');
+      var inp = $('input[name="setDigitalIoByApiMacIdInputTxt"]');
+      inp.val(sel.val());
+    }

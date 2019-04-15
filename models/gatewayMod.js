@@ -6,7 +6,8 @@
 // see:
 // https://stackoverflow.com/questions/9230932/file-structure-of-mongoose-nodejs-project
 
-var XBee = require('./xbee').XBee;
+var XBee = require('./xbeeMod').XBee;
+var Mdbradio = require('./mdbradioMod');
 var Utils = require('../lib/utils');
 var sleep = Utils.sleep;
 
@@ -128,27 +129,27 @@ GatewaySchema.statics.setup_serial_port_and_socket = function (port_name) {
     // i.e. sockets are per page, per load (sort of - to be qualified)
     io.of('/gateway').once('connection', async function (socket) {
 
-        
+
         socket.on('join', function(data) {
             console.log("Server socket received join with data: " + data);
             socket.emit('data', 'client join message received by server from: ' + data + '<br>');
         });
 
 
-            
-        //Connecting to client 
+
+        //Connecting to client
         console.log('Socket connected');
         console.log("socket.id: " + socket.id);
         console.log(' %s sockets connected', io.engine.clientsCount);
         // if using io.sockets.once vs io.sockets.on, then the first few
         // emits seem to be lost (not captured by the client as an update)
-        // on first starting the serialport and loading the page 
-        socket.emit('connected', true); 
-        //Gateway.emit_delayed_socket_message(socket, 'connected', true, 4000); 
-   
+        // on first starting the serialport and loading the page
+        socket.emit('connected', true);
+        //Gateway.emit_delayed_socket_message(socket, 'connected', true, 4000);
+
         //app.locals.gateway_socket_id = socket.id;
 
-        // TODO 
+        // TODO
         // error handling if port not set up etc.
         // may need to move elsewhere as we want this either:
         //  - open on gateway launch to do background items and checks independently
@@ -183,7 +184,7 @@ GatewaySchema.statics.setup_serial_port_and_socket = function (port_name) {
 
         // TODO error handling - e.g. if port not yet instantiated?
         port.on('data', function(data){
-            socket.emit('data', "<br>" + data.toString().replace("\r","<br>")); 
+            socket.emit('data', "<br>Raw in rcvd: " + data.toString().replace("\r","<br>"));
             // was replace with <br> // lines terminated with 0x0d
             // or replace with " " (using "" creates a problem)
 
@@ -195,8 +196,9 @@ GatewaySchema.statics.setup_serial_port_and_socket = function (port_name) {
               s = "0x" + ('0' + (data[i] & 0xFF).toString(16)).slice(-2);
               bufAsString += " " + s;
               if ( s == '0x7e' ) {
-                socket.emit('data', "<br>Flush any old API Packet: <br>" + apiPacketString + "<br>");
-                socket.emit('data', apiStringTrans + "<br>");
+                socket.emit('data', "<br>API Packet start rcvd: Flush to screen and reset the prior API Packet hex and ASCII keepers: <br>");
+                socket.emit('data', "apiPacketString: " + apiPacketString + "<br>");
+                socket.emit('data', "apiStringTrans:  " + apiStringTrans + "<br>Done flushes.<br>");
                 apiPacketString = s;
                 apiStringTrans = '----';
               } else {
@@ -205,15 +207,16 @@ GatewaySchema.statics.setup_serial_port_and_socket = function (port_name) {
                   apiStringTrans += " " + "   " + String.fromCharCode(parseInt(s));
                 } else {
                   apiStringTrans += " " + s;
-                } 
+                }
               }
             }
-            socket.emit('data', bufAsString + "<br>");
+            socket.emit('data', "<br>Current bufAsString: " + bufAsString + "<br>");
 
             stringBuffer += data.toString();              // Accumulate between data received until buffer is dumped, etc.
 
             // Alert: Until complete API is implemented, we'll be one buffer short so request one extra frame etc.
 
+            console.log("port data received:");
             console.log(data);
         });
 
@@ -222,7 +225,7 @@ GatewaySchema.statics.setup_serial_port_and_socket = function (port_name) {
             console.log("Server got socket disconnect for: " + socket.id);
         });
 
-        
+
 
 
         // Do you miss ajax and post?
@@ -233,10 +236,17 @@ GatewaySchema.statics.setup_serial_port_and_socket = function (port_name) {
         });
 
         socket.on('client_set_digital_io', function(macid, pin, state) {
-            console.log("Server socket received client_set_digital_io of " 
-                + macid + " for pin " + pin 
+            console.log("Server socket received client_set_digital_io of "
+                + macid + " for pin " + pin
                 + " to state " + state);
             Gateway.set_digital_io(socket, macid, pin, state);
+        });
+
+        socket.on('client_get_digital_io', function(macid, pin, state) {
+            console.log("Server socket received client_get_digital_io of "
+                + macid + " for pin " + pin
+                + " to state " + state);
+            Gateway.get_digital_io(socket, macid, pin);
         });
 
         socket.on('client_get_gateway_radio_serial_link_destination_mac_id_info', function() {
@@ -264,6 +274,28 @@ GatewaySchema.statics.setup_serial_port_and_socket = function (port_name) {
             Gateway.get_gateway_radio_dios(socket);
         });
 
+        socket.on('client_get_db_radio_mac_ids', function() {
+            console.log('Server socket received client_get_db_radio_mac_ids');
+            Gateway.get_db_radio_mac_ids(socket);
+        });
+
+        socket.on('client_pop_db_radio_mac_ids', function() {
+            console.log('Server socket received client_pop_db_radio_mac_ids');
+            Gateway.pop_db_radio_mac_ids(socket);
+        });
+
+        // Not implemented
+        socket.on('client_store_nd_radios_in_db', function(radios) {
+            console.log('Server socket received client_store_nd_radios_in_db');
+            Gateway.store_nd_radios_in_db(socket, radios);
+        });
+
+        // Call any further on-connect startup functions now
+
+        // Populate select with stored MACs
+        Gateway.pop_db_radio_mac_ids(socket);
+
+
     });
 
     port.on('error', function(err) {
@@ -276,6 +308,96 @@ GatewaySchema.statics.setup_serial_port_and_socket = function (port_name) {
 };
 
 
+// To get all digital IO Statements
+// Try the ATIS command
+// https://www.digi.com/resources/documentation/Digidocs/90002002/Content/Reference/r_zb_i_o_sampling.htm
+// A remote command response has the following bytes (after the API identifier):
+// [64-bit address] + [16-bit address] + [Command Name] + [Status] + [IO Data] + [Checksum]
+// The IO data is the same for a local IS or a remote IS:
+// [# Samples] + [Digital Mask] + [Analog Mask] + [Digital IO Data] + [Analog Data (if applicable)]
+
+
+GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin ) {
+
+    var app = require('../app');
+    var io = app.io;
+    var socket_id = app.locals.gateway_socket_id;
+    var this_socket = socket; // io.sockets.connected[socket_id];
+
+
+    await XBee.EnterCommandMode(port, this_socket);
+
+    await XBee.IssueAtCommand(port, this_socket, "atap1");
+
+    await XBee.ExitCommandMode(port, this_socket);
+
+    const START_BYTE = 0x7E;
+    const FRAME_TYPE = 0x17;
+
+    var bytes = new Uint8Array(100);
+    bytes[0] = (START_BYTE);
+    bytes[1] = (0x00);
+    bytes[2] = (0x0F); // for set with state payload byte, we use 0x10
+    bytes[3] = (FRAME_TYPE);
+    bytes[4] = (0x01);
+    for ( var i = 0; i < macid.length/2; i++ ) {
+        bytes[5+i] = (parseInt("0x" + macid.substr(i*2,2))); // to_i(16)
+
+    }
+    bytes[5+8] = (0xFF);
+    bytes[6+8] = (0xFE);
+    bytes[7+8] = (0x02);
+    bytes[8+8] = ("D".charCodeAt(0));
+    bytes[9+8] = (pin.charCodeAt(0));
+    //bytes[10+8] = (parseInt("0x" + state.substr(0,2)));
+
+    var sum = 0x0000;
+    for ( var j = 3; j < bytes.length; j++ ) {
+        sum += bytes[j];
+    }
+    sum &= 0x00FF;
+    var checksum = 0xFF - sum;
+
+    // get: 11+8 => 10+8
+    bytes[10+8]= (checksum);
+    console.log("Checksum (Get IO): " + checksum);
+
+    this_socket.emit('data', ">(Gateway.get_digital_io (1000ms)<br>");
+    console.log("Get IO packet to send, stringified:" + JSON.stringify(bytes.slice(0, 11+16))); // set: 11+17
+    port.write(bytes.slice(0, 11+16));
+    await sleep(1000);
+
+    await this_socket.emit('data', "<br><br><b>Finished:</b> Get Digital IO via API for: " + macid + " " + pin + "<br><br>");
+
+    // Now, to test, we could assume we have a reply to this request and parse it from the API packet accumulator Buffer
+    var ss = apiPacketString.replace(/\s/g,"").replace(/0x/g,"").toUpperCase();
+    var sa = apiPacketString.split(" ");
+    var len = sa.length;
+    var apiLen = parseInt(sa[2]);
+    if ( apiLen == (sa.length - 4) ) console.log("API length byte matches the payload length of the apiPacketString buffer: " + apiLen);
+    var macidReply = sa.slice(5,5+8).join("").replace(/0x/g,"");
+    if ( macidReply === macid ) console.log("API reply MAC ID matches the command MAC ID");
+
+    // For now for the DIO command, grab the 4th data payload reply byte as the pin state
+    var replyPinState = sa[18];
+    var toMatch = macid.toUpperCase() + "FFFE" + "D".charCodeAt(0).toString(16) + pin.charCodeAt(0).toString(16);
+    var rx = new RegExp(toMatch);
+    var mat = ss.match(rx);
+    var replyPinStateBySearch;
+    if ( mat ) {
+      replyPinStateBySearch = ss.slice(mat.index + toMatch.length).match(/.{1,2}/g) || "";
+      if ( replyPinStateBySearch ) {
+        replyPinStateBySearch = replyPinStateBySearch[1] || "";
+        replyPinStateBySearch = parseInt(replyPinStateBySearch);
+      } // 2nd byte of the 3 remaining bytes - the last byte is the checksum
+    }
+    console.log("ss: " + ss + " sa: " + sa + " apiLen: " + apiLen + " macid: " + macidReply + " replyPinStateBySearch: " + replyPinStateBySearch);
+
+    await this_socket.emit('data', "<br><br><b>Get Digital IO via API Value in Reply: " + replyPinStateBySearch + "</b><br><br>");
+    this_socket.emit('getDioPinState', replyPinStateBySearch);
+};
+
+
 
 
 GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, state ) {
@@ -284,7 +406,7 @@ GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, stat
     var io = app.io;
     var socket_id = app.locals.gateway_socket_id;
     var this_socket = socket; // io.sockets.connected[socket_id];
-    this_socket.emit('data', "Set Digital IO via API...<br>");    
+
 
     await XBee.EnterCommandMode(port, this_socket);
 
@@ -303,7 +425,7 @@ GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, stat
     bytes[4] = (0x01);
     for ( var i = 0; i < macid.length/2; i++ ) {
         bytes[5+i] = (parseInt("0x" + macid.substr(i*2,2))); // to_i(16)
-        
+
     }
     bytes[5+8] = (0xFF);
     bytes[6+8] = (0xFE);
@@ -320,15 +442,88 @@ GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, stat
     var checksum = 0xFF - sum;
 
     bytes[11+8]= (checksum);
-    console.log("Checksum: " + checksum);
+    console.log("Checksum (Set IO): " + checksum);
 
     this_socket.emit('data', ">(Gateway.set_digital_io (1000ms)<br>");
     console.log(JSON.stringify(bytes.slice(0, 11+17)));
     port.write(bytes.slice(0, 11+17));
     await sleep(1000);
 
+    await this_socket.emit('data', "<br><br><b>Finished:</b> Set Digital IO via API for: " + macid + " " + pin + " " + state + "<br><br>");
+
+    // Check the work now by reading back the pin state
+    await Gateway.get_digital_io(this_socket, macid, pin);
+
 };
 
+
+
+// https://stackoverflow.com/questions/35962539/express-mongoose-model-find-returns-undefined
+// https://stackoverflow.com/questions/45379341/function-returns-undefined-when-i-want-to-find-documents-from-dababase-in-mongoo
+// https://stackoverflow.com/questions/50555343/async-await-mongoose-doesnt-always-run-correctly
+GatewaySchema.statics.get_db_radio_mac_ids = async function (socket) {
+
+    /*await Mdbradio.find({}, 'name mac description', function (err, radios) {
+          if (err) {
+            console.log(err);
+          } else {
+            console.log("no err looking up find all radios");
+            console.log(radios);
+            res = radios; // send is for JSON // render for html
+          }
+      });*/
+
+    var radios = await Mdbradio.listAll();
+
+    socket.emit('macIdsFromDb', 'These are your database mac ids:<br>' + JSON.stringify(radios));
+};
+
+
+
+// TODO match this with other imlementation to keep the names in there too
+GatewaySchema.statics.pop_db_radio_mac_ids = async function (socket) {
+    var radios = await Mdbradio.listAll();
+    // https://stackoverflow.com/questions/5515310/is-there-a-standard-function-to-check-for-null-undefined-or-blank-variables-in
+    if ( radios ) {
+      socket.emit('macIdsFromDb', 'These are your database mac ids:<br>' + JSON.stringify(radios));
+      var sel = '<select name=\"macIdsSelSel\" id=\"macIdsSelSel\"  onclick=\"macIdsSelFcn()\">';
+      radios.forEach(function(radio) {
+          //var mac = s.replace(/\r[\w\d][^\r]*\rFFFE/,"").replace(/FFFE/g,"").replace(/\W/g,"");
+          var mac = radio.mac;
+
+          //var name = s.replace(/FFFE\r0013A200\r[0-9A-F]{8}/,"").replace(/FFFE/g,"").replace(/[^\w\s]/g,"").replace(/^\s/,"").replace(/\s$/,"");
+          var name = radio.name;
+          //var tplus = mac + "<br>";
+          //socket.emit('data', tplus);
+          //d += tplus;
+          sel += "<option value=\"" + mac + "\">" + mac + " (" + name + ")" + "</option>";
+      });
+      sel += "</select>";
+      socket.emit('macidssel', sel);
+      var sel = '<select name=\"macIdsSelSel\" id=\"macIdsSelSel\"  onclick=\"macIdsSelFcn()\">';
+    } else {
+      console.log("No radios to populate the select");
+    }
+}
+
+
+
+
+GatewaySchema.statics.store_nd_radios_in_db = async function (socket, radios) {
+
+  // TODO I'm pretty sure this is the totally wrong way to organize this workflow
+
+  await socket.emit('data', "<br>Storing ND Radios in DB...<br><br>");
+  // TODO clean this up
+  radios.forEach(async function(r){
+    await socket.emit('data', "MAC: " + r.mac + ", Name: " + r.name + "<br>");
+  });
+
+  await Mdbradio.storeAll(radios);
+
+  await socket.emit('data', "<br>Completed storing ND Radios in DB<br>");
+
+}
 
 
 
@@ -389,7 +584,7 @@ GatewaySchema.statics.get_gateway_xbee_mac = async function (socket) {
     port.flush();
 
     await XBee.EnterCommandMode(port, socket);
-    
+
     await XBee.IssueAtCommand(port, socket, "atsl"); // default timeoutms is 100 - this is ok
 
     await XBee.IssueAtCommand(port, socket, "atsh"); // default timeoutms is 100 - this is ok
@@ -411,7 +606,7 @@ GatewaySchema.statics.get_gateway_radio_dios = async function (socket) {
     port.flush();
 
     await XBee.EnterCommandMode(port, socket);
-    
+
     // Keeping test code here for reference for getting local gateway radio DIOs
     // Miss ruby yet?
     //@data_ios = []
@@ -463,7 +658,7 @@ GatewaySchema.statics.get_remote_radio_dios = async function (socket, macid) {
       cmd = "D" + i.toString();
       await XBee.SendApiRemoteAtPacket(port, socket, macid, cmd, 50);
       // These can be all queued up and sent directly - the responses will come back over time
-  
+
       // Now we could detach the data event (flow mode for the serial port) and do explicit read w/ timeout
       // or alternate method ...
     }
@@ -498,7 +693,7 @@ GatewaySchema.statics.get_gateway_xbee_dest_mac = async function (socket) {
     await XBee.IssueAtCommand(port, this_socket, "atdl");
 
     await XBee.IssueAtCommand(port, this_socket, "atdh");
-    
+
     await XBee.ExitCommandMode(port, this_socket);
 
 };
@@ -510,7 +705,7 @@ GatewaySchema.statics.get_gateway_xbee_dest_mac = async function (socket) {
 GatewaySchema.statics.do_node_discover = async function (socket) {
 
 
-    
+
     // TODO - move to XBee module?
 
     await XBee.EnterCommandMode(port, socket);
@@ -521,11 +716,11 @@ GatewaySchema.statics.do_node_discover = async function (socket) {
     // Is below really necessary?  Just wait some amount of time for data to be returned ... async ...
     var intervalms = 100.0;
     var maxwaittimesec = 10.0;
-    var maxwaitintervals = maxwaittimesec * 1000.0 / intervalms; 
+    var maxwaitintervals = maxwaittimesec * 1000.0 / intervalms;
     // TODO create waiting notification output function
     for ( i = 0; i < maxwaitintervals; i++ ) {
         socket.emit(
-            'data', 
+            'data',
             "> ... waiting ... interval " + i.toString() + " of " + maxwaitintervals.toString() + "...");
         await sleep(intervalms);
     }
@@ -534,22 +729,28 @@ GatewaySchema.statics.do_node_discover = async function (socket) {
 
     setTimeout(function(){Gateway.dump_string_buffer(socket)}, 15000); // clears buffer after dump
     setTimeout(function(){
-        r = XBee.ParseStringForMacIds(stringBuffer);
+      r = XBee.ParseStringForMacIdsAndNames(stringBuffer);
+      if ( r ) {
         setTimeout(function() {
           socket.emit('data', "<br><br>MAC IDs parsed:<br>");
           var d = "";
+          var sel = '<select name=\"macIdsSelSel\" id=\"macIdsSelSel\"  onclick=\"macIdsSelFcn()\">';
           for ( let s of r ) {
-              var t = s.replace(/\W/g,"") + "<br>";
-              socket.emit('data', t);
-              d += t; 
+              var mac = s.replace(/\r[\w\d][^\r]*\rFFFE/,"").replace(/FFFE/g,"").replace(/\W/g,"");
+              var name = s.replace(/FFFE\r0013A200\r[0-9A-F]{8}/,"").replace(/FFFE/g,"").replace(/[^\w\s]/g,"").replace(/^\s/,"").replace(/\s$/,"");
+              var tplus = mac + "<br>";
+              socket.emit('data', tplus);
+              d += tplus;
+              sel += "<option value=\"" + mac + "\">" + mac + " (" + name + ")" + "</option>";
           }
+          sel += "</select>";
           socket.emit('macids', d);
+          socket.emit('macidssel', sel);
         }, 1000); // setTimeout to print after the screen dump, since buffer gets cleared ... TODO cleanup
+      }
     }, 14000);
 
 };
-
-
 
 
 
@@ -564,8 +765,4 @@ module.exports = {
 
 
 
-console.log("Gateway model parsed to end");
-
-
-
-
+console.log("Dev Echo: Gateway model parsed to end");

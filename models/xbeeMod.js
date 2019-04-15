@@ -1,4 +1,4 @@
-// 
+//
 /* Model :: xbee */
 //
 
@@ -6,7 +6,7 @@
 //
 // No Schema yet
 // Primarily for XBee function calls at Class level (statics)
-// 
+//
 
 
 var Utils = require('../lib/utils');
@@ -26,26 +26,26 @@ XBee.prototype.data = {}
 
 
 XBee.EnterCommandMode = async function(port, clientSocket) {
-    
+
     clientSocket.emit(
-        defaultClientSocketChannel, 
+        defaultClientSocketChannel,
         "<br>>+++ [Enter command mode] (2000ms)<br>");
     port.write("+++");
     await sleep(2000);
     // TODO instead of wait, loop until read OK\r\n
     // otherwise max wait time and exit lack of success
 
-} 
+}
 
 
 XBee.ExitCommandMode = async function(port, clientSocket) {
-    
+
     clientSocket.emit(
-        defaultClientSocketChannel, 
+        defaultClientSocketChannel,
         "<br>>atcn [Exit command mode] (100ms)<br>");
     port.write("atcn\r\n");
 
-} 
+}
 
 
 XBee.IssueAtCommand = async function(port, clientSocket, cmd, timeoutms = 100) {
@@ -81,9 +81,9 @@ XBee.SendApiRemoteAtPacket = async function(port, clientSocket, macid, cmd, time
     const FRAME_TX_TYPE = 0x17;         // Execute AT command request on remote radio
     const FRAME_RX_TYPE = 0x97;         // Remote AT command response frame type
     const APPLY_CHANGES = 0x02;
-    
+
     // Uint8Array declaration for bytes, but can't push so pre-define large
-    var bytes = new Uint8Array(100);  
+    var bytes = new Uint8Array(100);
 
     bytes[0] = (START_BYTE);
     bytes[1] = (0x00);                  // Length MSB (payload bytes 3 .. end excl checksum)
@@ -99,21 +99,21 @@ XBee.SendApiRemoteAtPacket = async function(port, clientSocket, macid, cmd, time
     bytes[6+8] = (0xFE);                // or 0xFFFF for broadcast - yes bytes[14]
     bytes[7+8] = (0x02);                // Apply changes or 0x00 for N/A or don't apply?
 
-    // Payload length including address is 13 bytes in length up to here, excluding the 
+    // Payload length including address is 13 bytes in length up to here, excluding the
     // command itself, which is 0x0D
-    
+
     //bytes[8+8] = ("D".charCodeAt(0));   // e.g. (B) = 0x42
     //bytes[9+8] = (pin.charCodeAt(0));   // e.g. (H) = 0x48
     //bytes[10+8] = (parseInt("0x" + state.substr(0,2))); // e.g. 0x01 = 1
     // parseInt("0x" + "04") = 4 vs "4" charCode = 52
     // no argument = query the parameter
     // the parseInt and substr combo work is the state is just "4" too
-  
+
     // AT commands are always just 2 characters
     bytes[8+8] = cmd.charCodeAt(0);
     bytes[9+8] = cmd.charCodeAt(1);
     plength += 2;
-    
+
     // AT command parameters is always just one byte so "0xNN" just the "NN" part
     if ( cmd.length > 2 ) {
       bytes[10+8] = (parseInt("0x" + cmd.substr(2,2))); // e.g. 0x01 = 1
@@ -128,7 +128,7 @@ XBee.SendApiRemoteAtPacket = async function(port, clientSocket, macid, cmd, time
     sum &= 0x00FF;
     var checksum = 0xFF - sum;
 
-    //bytes[11+8]= (checksum);       
+    //bytes[11+8]= (checksum);
     bytes[plength + 3] = (checksum);      // +3 for the first 3 bytes not included in the length
     bytes[2] = plength;                   // only the LSB of the length will matter for AT commands (ish)
     console.log("Checksum: " + checksum);
@@ -139,7 +139,7 @@ XBee.SendApiRemoteAtPacket = async function(port, clientSocket, macid, cmd, time
     await sleep(timeoutms);
 
     // Read response
-    
+
     // Well actually, the data event handler in the main code will get the response
 
 
@@ -155,9 +155,21 @@ XBee.ParseStringForMacIds = function ( stringIn ) {
 
 }
 
+XBee.ParseStringForMacIdsAndNames = function ( stringIn ) {
+
+  // Get MAC IDs AND Names
+  // regex101.com is a nice tool for validating/testing
+  // When testing there, if copying from the output window in the browser
+  // then use "\n" instead of "\r" for example
+  // Allows punctuation and symbols
+  r = stringIn.match(/FFFE\r0013A200\r[0-9A-F]{8}\r[\w\d][^\r]*\rFFFE/g)
+  console.log(r);
+  return r;
+
+}
 
 
-
+// TODO
 // Checksum function
 
 

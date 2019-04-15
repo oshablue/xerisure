@@ -4,11 +4,34 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
-var gatewayRouter = require('./routes/gateway');
+// Q1 2019
+// Is body parser still needed for our versions of express, etc.?
+const bodyParser = require('body-parser'); // https://codeburst.io/writing-a-crud-app-with-node-js-and-mongodb-e0827cbbdafb
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
 var app = express();
+
+// This should be before routes (?)
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended:false})); // false = use querystring = data is string or array (not anything)
+
+
+// dB Setup
+let dev_db_url = "mongodb://xerisureUser:"+encodeURIComponent("captainXeri1@8")+"@localhost:27017/xerisure";
+let mongoDB = process.env.MONGODB_URI || dev_db_url;
+mongoose.connect(mongoDB, { useNewUrlParser: true});
+mongoose.Promise = global.Promise;
+let db = mongoose.connection;
+db.on('error', console.error.bind(console, 'MongoDB connection error:'));
+
+// Routes
+var indexRouter = require('./routes/indexRou');
+var usersRouter = require('./routes/usersRou');
+var gatewayRouter = require('./routes/gatewayRou');
+var mdbradioRouter = require('./routes/mdbradioRou');
+
+
 
 
 var socket_io = require('socket.io');
@@ -34,6 +57,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.locals.siteName = "Xerisure";
 app.locals.gateway_socket_id = null;
 
+
+
+
 // Application Serial Port(s)
 // Is there a better way to structure this?
 // We need only one gateway radio serial port object, single item at the top level to prevent re-instantiation at the route handling
@@ -50,6 +76,7 @@ app.locals.gateway_socket_id = null;
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/gateway', gatewayRouter);
+app.use('/mdbradios', mdbradioRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -68,4 +95,3 @@ app.use(function(err, req, res, next) {
 });
 
 module.exports = app;
-
