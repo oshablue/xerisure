@@ -43,6 +43,26 @@ var apiPacketString;
 var apiStringTrans;
 var stringBuffer = "";
 
+// Notifications
+const nodemailer = require('nodemailer');
+var transporter = nodemailer.createTransport({
+  host: 'box569.bluehost.com', /*'smtp.oshablue.com',*/
+  port: 465,
+  secure: true,
+  auth: {
+    user: 'notifications@oshablue.com',
+    pass: 'W?X:1m4@3VaWQ2'
+  }
+});
+var mailOptions = {
+  from: 'notifications@oshablue.com',
+  to: 'notifications@oshablue.com',
+  subject: 'Notification from Xerisure',
+  text: 'Blank text body from Xerisure'
+};
+
+
+
 /* Bad boys and girls! No sync! */
 // Use .methods for instance functions
 GatewaySchema.statics.serial_port_list_sync = function () {
@@ -127,7 +147,9 @@ GatewaySchema.statics.setup_serial_port_and_socket = function (port_name) {
     // a socket will be created - and then when the gateway page loads the socket ids will be out of sync
     // for the communications here - likely resulting in lost communications upon page first load
     // i.e. sockets are per page, per load (sort of - to be qualified)
-    io.of('/gateway').once('connection', async function (socket) {
+    // Was .once()
+    // Testing .on() again for reconnection by client eg mobile browser that loses socket connection quickly by design probably
+    io.of('/gateway').on('connection', async function (socket) {
 
 
         socket.on('join', function(data) {
@@ -454,6 +476,19 @@ GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, stat
     // Check the work now by reading back the pin state
     await Gateway.get_digital_io(this_socket, macid, pin);
 
+    // Notify
+    mailOptions.text = "Xerisure message: gatewayModel: set_digital_io for: MAC ID: " + macid + " Pin (base 0): " + pin + ", Setting to state: " + state + " [End Message]";
+    await transporter.sendMail(mailOptions, function(error, info){
+      if (error) {
+        console.log(error);
+        // Can use info.MessageId etc.
+        this_socket.emit('data', "<br><br><b>Error on sending mail notification from gatewayModel for set_digital_io" + "<br><br>");
+      } else {
+        console.log('Email sent: ' + info.response);
+        this_socket.emit('data', "<br><br><b>Finished sending mail notification from gatewayModel for set_digital_io" + "<br><br>");
+      }
+    });
+
 };
 
 
@@ -486,7 +521,7 @@ GatewaySchema.statics.pop_db_radio_mac_ids = async function (socket) {
     // https://stackoverflow.com/questions/5515310/is-there-a-standard-function-to-check-for-null-undefined-or-blank-variables-in
     if ( radios ) {
       socket.emit('macIdsFromDb', 'These are your database mac ids:<br>' + JSON.stringify(radios));
-      var sel = '<select name=\"macIdsSelSel\" id=\"macIdsSelSel\"  onclick=\"macIdsSelFcn()\">';
+      var sel = '<select name=\"macIdsSelSel\" id=\"macIdsSelSel\" onchange=\"macIdsSelFcn()\" onclick=\"macIdsSelFcn()\">';
       radios.forEach(function(radio) {
           //var mac = s.replace(/\r[\w\d][^\r]*\rFFFE/,"").replace(/FFFE/g,"").replace(/\W/g,"");
           var mac = radio.mac;
@@ -500,7 +535,7 @@ GatewaySchema.statics.pop_db_radio_mac_ids = async function (socket) {
       });
       sel += "</select>";
       socket.emit('macidssel', sel);
-      var sel = '<select name=\"macIdsSelSel\" id=\"macIdsSelSel\"  onclick=\"macIdsSelFcn()\">';
+      var sel = '<select name=\"macIdsSelSel\" id=\"macIdsSelSel\" onchange=\"macIdsSelFcn()\" onclick=\"macIdsSelFcn()\">';
     } else {
       console.log("No radios to populate the select");
     }
@@ -734,7 +769,7 @@ GatewaySchema.statics.do_node_discover = async function (socket) {
         setTimeout(function() {
           socket.emit('data', "<br><br>MAC IDs parsed:<br>");
           var d = "";
-          var sel = '<select name=\"macIdsSelSel\" id=\"macIdsSelSel\"  onclick=\"macIdsSelFcn()\">';
+          var sel = '<select name=\"macIdsSelSel\" id=\"macIdsSelSel\"  onchange=\"macIdsSelFcn()\" onclick=\"macIdsSelFcn()\">';
           for ( let s of r ) {
               var mac = s.replace(/\r[\w\d][^\r]*\rFFFE/,"").replace(/FFFE/g,"").replace(/\W/g,"");
               var name = s.replace(/FFFE\r0013A200\r[0-9A-F]{8}/,"").replace(/FFFE/g,"").replace(/[^\w\s]/g,"").replace(/^\s/,"").replace(/\s$/,"");

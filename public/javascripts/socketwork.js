@@ -20,6 +20,8 @@ var btnPopDbRadioMacIds;
 var btnGetRemoteRadioDios
 var txtRemoteRadioMacId;
 
+var btnReconnectSocket;
+
 var divMacIds;
 var divMacIdsFromDb;
 var divGetDioPinState;
@@ -54,6 +56,8 @@ window.onload = function () {
 
     txtRemoteRadioMacId = document.getElementById('remoteRadioMacIdInputTxt');
     btnGetRemoteRadioDios = document.getElementById('getRemoteRadioDios');
+
+    btnReconnectSocket = document.getElementById('reconnectSocketBtn');
 
     // TODO DRY ... eventually ...
     btnSetDestinationMacId.addEventListener("click", function() {
@@ -95,6 +99,21 @@ window.onload = function () {
 
     btnPopDbRadioMacIds.addEventListener("click", function() {
         socket.emit('client_pop_db_radio_mac_ids');
+    }, false);
+
+    btnReconnectSocket.addEventListener("click", function() {
+        $.get('/ping', function () {
+        });
+        //$.get('/gateway', function () {
+        //});
+        console.log("Trying reconnect to socket...");
+
+        console.log("Before");
+        console.log(socket);
+        socket.close();
+        socket.connect(); // only for socket IO < 2
+        console.log("After:");
+        console.log(socket);
     }, false);
 
     // TODO this is obivously bad for production:

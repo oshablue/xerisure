@@ -44,7 +44,8 @@ block content
       button#getDigitalIoByApiInputBtn.btn.btn-primary
         | Get Digital IO Pin State
 
-
+      button#reconnectSocketBtn.btn.btn-primary
+        | Reconnect Socket
 
   h2 Serial Port Socket Status and Log
   pre#connection
@@ -163,5 +164,6 @@ block content
     function macIdsSelFcn() {
       var sel = $('select[name="macIdsSelSel"]');
       var inp = $('input[name="setDigitalIoByApiMacIdInputTxt"]');
-      inp.val(sel.val());
+      var newMac = sel.val();
+      inp.val(newMac);
     }
