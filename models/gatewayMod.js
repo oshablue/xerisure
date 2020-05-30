@@ -306,6 +306,11 @@ GatewaySchema.statics.setup_serial_port_and_socket = function (port_name) {
             Gateway.pop_db_radio_mac_ids(socket);
         });
 
+        socket.on('client_set_digital_io_with_timed_reset', function( macid, pin, timedstate, durationMinutes) {
+            console.log('Server socket receive client_set_digital_io_with_timed_reset');
+            Gateway.set_digital_io_with_timed_reset(socket, macid, pin, timedstate, durationMinutes);
+        });
+
         // Not implemented
         socket.on('client_store_nd_radios_in_db', function(radios) {
             console.log('Server socket received client_store_nd_radios_in_db');
@@ -346,6 +351,10 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin ) {
     var socket_id = app.locals.gateway_socket_id;
     var this_socket = socket; // io.sockets.connected[socket_id];
 
+    console.log("");
+    console.log("gatewayMod: get_digital_io called - get pin sate for pin: " + pin + " at MAC ID: " + macid);
+
+    port.flush();
 
     await XBee.EnterCommandMode(port, this_socket);
 
@@ -417,7 +426,49 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin ) {
 
     await this_socket.emit('data', "<br><br><b>Get Digital IO via API Value in Reply: " + replyPinStateBySearch + "</b><br><br>");
     this_socket.emit('getDioPinState', replyPinStateBySearch);
+
+    port.flush();
+
+    console.log("gatewayMod: get_digital_io finished.");
+    console.log("");
+
+    return replyPinStateBySearch;
 };
+
+
+GatewaySchema.statics.set_digital_io_with_timed_reset = async function ( socket, macid, pin, state, durMins ) {
+
+  console.log("");
+  console.log("gatewayMod: set_digital_io_with_timed_reset started ... duration is: " + durMins + "(Will add a standard base delay of 5 seconds)");
+
+  var timeMs = (durMins * 60. * 1000.) + (5 * 1000.);
+
+  var maxtries = 4;
+  var i = 0;
+  var currentPinState = -1;
+  while ( i++ < maxtries) {
+    currentPinState = await Gateway.get_digital_io( socket, macid, pin );
+    console.log("Gateway model: set_digital_io_with_timed_reset: get_digital_io: value: " + currentPinState);
+    if ( currentPinState < 10 && currentPinState > -1 ) {
+      break;
+    }
+  }
+  if ( i >= maxtries ) {
+    console.log("Couldn't get a reasonable current pin state (not between 0 and 9) maxtries: " + i + " with last currentPinState: " + currentPinState);
+    console.log("Maybe try checking the MAC ID selection and the Pin Number Settings as well as power to devices.");
+    return -1; //
+  }
+
+  await Gateway.set_digital_io( socket, macid, pin, state);
+
+  setTimeout( function() {
+    console.log("Will reset pin " + pin + " to " + currentPinState + " in " + ((durMins) * 1000) + " minutes (plus base 5-second delay).");
+    Gateway.set_digital_io( socket, macid, pin, currentPinState);
+  }, timeMs );
+
+}
+
+
 
 
 
@@ -429,12 +480,19 @@ GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, stat
     var socket_id = app.locals.gateway_socket_id;
     var this_socket = socket; // io.sockets.connected[socket_id];
 
+    state = '' + state;
+
+    console.log("");
+    console.log("gatewayMod: set_digital_io called - set to: " + state + " for pin " + pin + " at MAC ID: " + macid);
+    port.flush();
 
     await XBee.EnterCommandMode(port, this_socket);
 
     await XBee.IssueAtCommand(port, this_socket, "atap1");
 
     await XBee.ExitCommandMode(port, this_socket);
+
+    port.flush();
 
     const START_BYTE = 0x7E;
     const FRAME_TYPE = 0x17;
@@ -474,9 +532,11 @@ GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, stat
     await this_socket.emit('data', "<br><br><b>Finished:</b> Set Digital IO via API for: " + macid + " " + pin + " " + state + "<br><br>");
 
     // Check the work now by reading back the pin state
+    console.log("gatewayMod: set_digital_io: right before calling get_digital_io for confirmation...");
     await Gateway.get_digital_io(this_socket, macid, pin);
 
     // Notify
+    console.log("gatewayMod: set_digital_io: right before calling set up set_digital_io email notification...");
     mailOptions.text = "Xerisure message: gatewayModel: set_digital_io for: MAC ID: " + macid + " Pin (base 0): " + pin + ", Setting to state: " + state + " [End Message]";
     await transporter.sendMail(mailOptions, function(error, info){
       if (error) {
@@ -488,6 +548,9 @@ GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, stat
         this_socket.emit('data', "<br><br><b>Finished sending mail notification from gatewayModel for set_digital_io" + "<br><br>");
       }
     });
+
+    console.log("gatewayMod: finished set_digital_io, after email notification.");
+    console.log("");
 
 };
 

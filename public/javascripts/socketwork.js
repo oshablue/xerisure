@@ -26,6 +26,10 @@ var divMacIds;
 var divMacIdsFromDb;
 var divGetDioPinState;
 
+var selPinCycleDurationMinutesSel;
+var txtPinCycleDurationMinutesTxt;
+var btnTimedPinCycle;
+
 // NOTE: Intentional explicit function setup, with non-DRY code for clarity (presumed...)
 
 window.onload = function () {
@@ -58,6 +62,10 @@ window.onload = function () {
     btnGetRemoteRadioDios = document.getElementById('getRemoteRadioDios');
 
     btnReconnectSocket = document.getElementById('reconnectSocketBtn');
+
+    selPinCycleDurationMinutesSel = document.getElementById('pinCycleDurationMinutesSel');
+    txtPinCycleDurationMinutesTxt = document.getElementById('pinCycleDurationMinutesTxt');
+    btnTimedPinCycle = document.getElementById('timedPinCycleBtn');
 
     // TODO DRY ... eventually ...
     btnSetDestinationMacId.addEventListener("click", function() {
@@ -100,6 +108,20 @@ window.onload = function () {
     btnPopDbRadioMacIds.addEventListener("click", function() {
         socket.emit('client_pop_db_radio_mac_ids');
     }, false);
+
+    selPinCycleDurationMinutesSel.addEventListener("click", function() {
+      pinCycleDurationMinutesFcn();
+    }, false);
+
+    btnTimedPinCycle.addEventListener("click", function() {
+      if ( txtPinCycleDurationMinutesTxt.value < 0 ) {
+        socket.emit('client_set_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
+      } else if ( txtPinCycleDurationMinutesTxt.value >= 0 ) {
+        socket.emit('client_set_digital_io_with_timed_reset',
+          txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value, txtPinCycleDurationMinutesTxt.value);
+      } else {
+        console.log("socketwork.js: btnTimedPinCycle txt input value not < 0 or >= 0"); }
+    })
 
     btnReconnectSocket.addEventListener("click", function() {
         $.get('/ping', function () {
@@ -157,6 +179,7 @@ window.onload = function () {
 // https://stackoverflow.com/questions/11653237/socket-io-failed-to-load-resource
 
 var origin = window.location.origin;
+//var socket = io();
 var socket = io.connect(origin + '/gateway');
 
 // https://stackoverflow.com/questions/41924713/node-js-socket-io-page-refresh-multiple-connections

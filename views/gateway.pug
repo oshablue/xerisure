@@ -28,24 +28,55 @@ block content
       label(for='setDigitalIoByApiMacId') Radio MAC ID:
       input#setDigitalIoByApiMacIdInputTxt.form-control(type='text', placeholder='0013A200 40nnmmpp' name='setDigitalIoByApiMacIdInputTxt')
 
-      label(for='setDigitalIoByApiPinNumberInputTxt') Pin Number (Base 0):
-      input#setDigitalIoByApiPinNumberInputTxt.form-control(type='text', placeholder='0' name='setDigitalIoByApiPinNumberInputTxt')
+      div(class='card p-2')
+        div(class='card-body')
+          h3(class='card-title')
+            Pin State Controls
 
-      label(for='setDigitalIoByApiPinStateInputTxt') Pin State (Function depends on radio configuration and type):
-      input#setDigitalIoByApiPinStateInputTxt.form-control(type='text', placeholder='0' name='setDigitalIoByApiPinStateInputTxt')
+          p(class='card-text')
+            label(for='setDigitalIoByApiPinNumberInputTxt') Pin Number (Base 0):
+            input#setDigitalIoByApiPinNumberInputTxt.form-control(type='text', placeholder='0' name='setDigitalIoByApiPinNumberInputTxt')
 
-      div#getDioPinStateContainer
-        | State for selected pin:
-        div#getDioPinState(style={display: 'none'})
+            label(for='setDigitalIoByApiPinStateInputTxt') Pin State (Function depends on radio configuration and type):
+            input#setDigitalIoByApiPinStateInputTxt.form-control(type='text', placeholder='0' name='setDigitalIoByApiPinStateInputTxt')
 
-      button#setDigitalIoByApiInputBtn.btn.btn-primary
-        | Set Digital IO Pin State
+            div(class='ctrls-with-margins')
+              div#getDioPinStateContainer
+                | State for selected pin:
+                div#getDioPinState(style={display: 'none'})
 
-      button#getDigitalIoByApiInputBtn.btn.btn-primary
-        | Get Digital IO Pin State
+              button#setDigitalIoByApiInputBtn.btn.btn-primary
+                | Set Digital IO Pin State
 
-      button#reconnectSocketBtn.btn.btn-primary
-        | Reconnect Socket
+              button#getDigitalIoByApiInputBtn.btn.btn-primary
+                | Get Digital IO Pin State
+
+              button#reconnectSocketBtn.btn.btn-primary
+                | Reconnect Socket
+
+            div(class='card mt-3')
+              div(class='card-body')
+                h4(class='card-title')
+                  Timed Pin Set &amp; Reset
+                p(class='card-text')
+                  div.input-group.mb-1
+                    div.input-group-prepend
+                      span#basic-addon1(class='input-group-text')
+                        | Select Duration
+                    div#pinCycleDurationMinutesDiv
+                      select#pinCycleDurationMinutesSel.custom-select(name="pinCycleDurationMinutesSel")
+                        option(value=-1) #{"None"}
+                        option(value=0) #{"Immediate"}
+                        option(value=20) #{"20 Minutes"}
+                        option(value=60) #{"1 Hour"}
+                        option(value=90) #{"1-1/2 Hour"}
+                  div(class='input-group mb-1')
+                    div(class='input-group-prepend')
+                      span#basic-addon2(class='input-group-text')
+                        | On Duration [minutes]
+                    input#pinCycleDurationMinutesTxt(type='text', placeholder='20', class='m-0')
+                  button#timedPinCycleBtn.btn.btn-primary.mb-1
+                    | Timed Pin Set and Reset
 
   h2 Serial Port Socket Status and Log
   pre#connection
@@ -166,4 +197,11 @@ block content
       var inp = $('input[name="setDigitalIoByApiMacIdInputTxt"]');
       var newMac = sel.val();
       inp.val(newMac);
+    }
+
+    function pinCycleDurationMinutesFcn() {
+      var sel = $('select[name="pinCycleDurationMinutesSel"]');
+      var inp = $('input[id="pinCycleDurationMinutesTxt"]');
+      var pinDur = sel.val();
+      inp.val(pinDur);
     }
