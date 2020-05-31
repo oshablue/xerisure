@@ -1,0 +1,107 @@
+extends layout
+
+block title
+  h1= siteName + ' :: Dev'
+  p Welcome to the #{siteName} Dev and Mgmt Notes Page
+  p This page shows information about the current development and management configuration - just for temp current dev notes - probably the wrong place for this - but in pinches, it has been quite nice to have this right here, for example, when working mobile and TS in the field
+
+
+block content
+
+
+  #devAndMgmtNotes(class='card pl-2')
+    h3 A Bunch of Stuff - Yes, it is terrible to put some of this in here. Risk trade-off for help at fingertips.
+    p We have pm2 set up to run "xeri" and it starts on boot by the user "nodeuser" (phint: full-app-name@street-number).
+      To reboot of course, as either user (main user is hint echo-tango-etc. 4x chars):
+      pre
+        |$ ssh as-hinted@ip -p [our port]
+        |as-hinted$ sudo reboot
+
+    p Logs, when running via the pm2 / nodeuser: log in as main as-hinted user and sudo to see nodeuser's stuff, or better just log in as nodeuser:
+      pre
+        |$ ssh nodeuser@ip -p [our port]
+        |nodeuser$ tail -f ~/.pm2/logs/xeri-out.log
+        |# or xeri-error.log
+
+    p To stop the pm2 running app ("xeri") for example to launch dev on same port during modifications:
+      Log in as the pm2 launch user, "nodeuser"
+      pre
+        |$ ssh nodeuser@ip -p [our port]
+        |nodeuser$ pm2 stop xeri
+    p And then when we're ready for production (ish) again, just pm2 start xeri, or I like the cleanliness of validation just rebooting the system, to make sure auto launch works.
+
+    p To develop, log in again as the main dev as-hinted user and, examples:
+      pre
+        |$ ssh as-hinted@ip -p [our port]
+        |as-hinted$ ~/xerisure (To launch that script that runs this as nodemon via npm run devstart - see package.json for devstart implementation)
+        |# or for more debug output running live
+        |as-hinted$ cd ~/nodedev-test/xerisure
+        |as-hinted$ DEBUG=xerisure:* node ./bin/www
+        |# there are several options to run as such
+
+    p Launch VNC on port 5901 to use Atom on the desktop remotely:
+      pre 
+        |$ ssh as-hinted@ip -p [our port]
+        |as-hinted$ vncserver
+        |# then on macOS you can just use:
+        |mac-user$ open vnc://ip:5901
+        |# then on the desktop, you can select Application => Development => Atom
+        |# Note there are some bugs running this way:
+        |# Trying to use the terminal on the desktop at this time freezes and is broken, so just use plain terminal from dev PC to remote in
+        |# Sometimes, maybe after long time idle or loss of network or sleep?, it seems that Atom functionality kind of breaks too
+        |# Until the real cause is found, the reboot method is functional, and then re-VNC
+
+
+    p When re-launching as the pm2 / nodeuser, make sure to pull the committed new code:
+      pre
+        |$ ssh nodeuser@ip -p [our port]
+        |nodeuser$ cd ~/xerisure
+        |git pull
+        |#(use for now bitbucket personal user)
+
+  h2 Serial Port Socket Status and Log
+  pre#connection
+  pre#statuslog(class='preserve-whitespace pre-scrollable')
+    |Status Log<br>
+
+
+  div(class='card pl-2')
+    h2 H2 Thing
+    h3 H3 Thingy
+    h4 H4 Thinglet
+
+
+  h2 Developer Resources
+  ul
+    li
+      a(href='https://developer.mozilla.org/en-US/docs/Learn/Server-side/Express_Nodejs/Displaying_data/Template_primer') NodeJS Mozilla on Templates (pug)
+    li
+      a(href='https://developer.mozilla.org/en-US/docs/Learn/Server-side/Express_Nodejs/Displaying_data/Home_page') Node.js Mozilla on putting data into templates and pages
+    li
+      a(href='http://theholmesoffice.com/getting-ready-for-scalability-creating-an-mvc-framework-for-our-node-js-page/') Holmes Office on basic MVC with Node.js including a static model for simple test data
+    li
+      a(href='https://www.npmjs.com/package/serialport') Node.js npm serialport package
+    li
+      a(href='http://helloraspberrypi.blogspot.com/2014/03/nodejssocketioserialport-web-app-to.html') RaspPi Socket.io Node.js etc.
+    li
+      a(href='http://danialk.github.io/blog/2014/04/26/arduino-and-processingjs-and-socketio-in-action/') Arduino Node.js and Socket.io
+
+  h2 Serial Port Access
+  p.
+    You may need to make sure that the user running the Node.js process(es) has permissions to access the serial port.  See e.g. #[a(href='https://help.ubuntu.com/community/SerialConsoleHowto') Ubuntu on Serial Port access] about user and group access checks and updates.  For the Ubuntu 16.nnnnn installation here, during initial development, the following was needed:
+
+  pre
+    |ls /dev/ttyUSB0 (ok)
+    br
+    |id -Gn |grep dialout (no output ... need to add user)
+    br
+    |sudo adduser $USER dialout
+
+  p and then log out and back in again, and now, yes, running the server, no console output indicating failed permissions on the port (check with #[code id -Gn] again
+
+
+  h2 Rapid Site Update Hints
+  p To add a ...
+  ol
+    li
+    li
