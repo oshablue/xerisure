@@ -177,18 +177,19 @@ window.onload = function () {
 
 
 // https://stackoverflow.com/questions/11653237/socket-io-failed-to-load-resource
-
-var origin = window.location.origin;
-//var socket = io();
-var socket = io.connect(origin + '/gateway');
+//
+//var origin = window.location.origin;
+var socket = io('/gateway');
+//var socket = io.connect(origin + '/gateway');
 
 // https://stackoverflow.com/questions/41924713/node-js-socket-io-page-refresh-multiple-connections
 //
 //var socket = io.connect(origin, {transports: ['websocket'], upgrade: false});
 
-socket.on('connected', function(){
-  connection.innerHTML += "Socket Connected";
-  socket.emit('join', 'Client emit: client socket.on(connected) reply to server connected msg via socket.on(connected) fnc');
+socket.on('connected', function(status){
+  connection.innerHTML += "Socket Connected " + status;
+  //socket.emit('join', 'Client emit: client socket.on(connected) reply to server connected msg via socket.on(connected) fnc');
+  socket.emit('setupSerialPort');
 });
 socket.on('disconnect', function(){
   connection.innerHTML = "Socket Disconnected";
@@ -197,10 +198,10 @@ socket.on('data', function (data) {
   statuslog.innerHTML = statuslog.innerHTML + data;
   statuslog.scrollTop = statuslog.scrollHeight;
 });
-socket.on('connect', function(data) {
+/*socket.on('connect', function(data) {
   connection.innerHTML += "<br>socket.on('connect') [next: emit join to server]<br>" + socket.id + "<br>";
   socket.emit('join', 'Client emit: client socket.on(connect) fcn fired'); // may not go through?
-});
+});*/
 
 // TODO -- this belongs in gateway page only socket work:
 socket.on('macids', function(data) {

@@ -95,3 +95,22 @@ function onListening() {
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
 }
+
+var Gateway = require('../models/gatewayMod').Gateway;
+Gateway.start(io);
+
+io.of('/gateway').on('connection', async function (socket) {
+  
+  console.log('Socket connected');
+  var addy = socket.conn.remoteAddress;
+  console.log(`with IP: ${addy}`);
+  console.log("socket.id: " + socket.id);
+  console.log(' %s sockets connected', io.engine.clientsCount);
+  socket.emit('connected', true);
+
+  socket.on('disconnect', function () {
+      console.log("Server got socket disconnect for: " + socket.id);
+      console.log(' %s sockets connected', io.engine.clientsCount);
+  });
+
+});
