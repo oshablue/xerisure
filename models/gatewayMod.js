@@ -381,6 +381,10 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin ) {
 
     // Now, to test, we could assume we have a reply to this request and parse it from the API packet accumulator Buffer
     var ss = apiPacketString.replace(/\s/g,"").replace(/0x/g,"").toUpperCase();
+    this_socket.emit('data', "\r apiPacketString: ");
+    this_socket.emit('data', apiPacketString);
+    this_socket.emit('data', "\r with spaces and 0x removed: ");
+    this_socket.emit('data', ss);
     var sa = apiPacketString.split(" ");
     var len = sa.length;
     var apiLen = parseInt(sa[2]);
