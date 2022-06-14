@@ -1,4 +1,5 @@
 const Mdbradio = require('../models/mdbradioMod.js');
+const Wateringchannel = require('../models/wateringcircuitMod.js');
 
 // Test basic wiring
 exports.test = function (req, res) {
@@ -53,7 +54,8 @@ exports.create = function (req, res, next) {
 exports.details = function ( req, res, next ) {
   Mdbradio.findById(req.params.id, function (err, radio) {
     if (err) return next (err);
-    res.send(radio);
+    //res.send(radio);
+    return res.render('radiodetail', {radio_details: radio}) // How to populate the wateringcircuit details with more than just the id in the view?
   });
 };
 
@@ -76,6 +78,34 @@ exports.update = function ( req, res, next ) {
     }
   );
 };
+
+
+exports.addchannel = function ( req, res, next ) {
+	var d = "post is: " +  JSON.stringify(req.body);
+	let wc = new Wateringchannel(req.body);
+	wc.save(function(err) {
+		Mdbradio.findById(req.body.radio, function (err, radio) {
+			if (err) return next (err);
+			//res.send(radio);
+			//return res.render('radiodetail', {radio_details: radio})
+			radio.wateringcircuits.push(wc); // not actually best method for unbounded - use virtuals - though it is functional
+			radio.save(); // TODO error handling 
+		  });
+		if (err) {
+		  console.log(req);
+		  console.log("req.body: " + JSON.stringify(req.body));
+		  console.log(req.params);
+		  console.log(err);
+		  return next(err);
+		}
+		res.send('Watering channel created (added to radio) successfully' + d);
+	});
+};
+
+
+
+
+
 
 exports.updateMacByName = function ( req, res, next ) {
   Mdbradio.findOneAndUpdate(

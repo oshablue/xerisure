@@ -1,13 +1,16 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+//const Wateringcircuit = require('./wateringcircuitMod.js');
+
+
 let MdbradioSchema = new Schema({
     name: {type: String, required: true, max: 100},
     mac: {type: String, required: true},
-    description: {type: String, required: false, max: 1000}
+    description: {type: String, required: false, max: 1000},
+    //test: {type: String, default: "Yeah" }, // yes requires an app restart like pm2 restart 0
+    wateringcircuits: [{ type: Schema.Types.ObjectId, ref: 'Wateringcircuit' }]
 });
-
-
 
 
 
@@ -16,7 +19,10 @@ let MdbradioSchema = new Schema({
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 MdbradioSchema.statics.listAll = async function listAll () {
   try {
-    return await this.find().lean().exec();
+	  //var rs = await this.find().exec(); 
+	  //var wcs = await Wateringcircuit.find().exec();
+    //return (rs, wcs); // await this.find().exec(); //.lean().exec();
+    return await this.find().populate('wateringcircuits').exec();
   } catch (err) {
     console.log(err);
   }

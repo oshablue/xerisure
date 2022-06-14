@@ -14,4 +14,7 @@ router.put('/:id/update', mdbradio_controller.update);
 router.delete('/:id/delete', mdbradio_controller.delete);
 router.post('/updateMacByName', mdbradio_controller.updateMacByName);
 
+router.get('/:id/edit', mdbradio_controller.details);
+router.post('/addchannel', mdbradio_controller.addchannel);
+
 module.exports = router;
