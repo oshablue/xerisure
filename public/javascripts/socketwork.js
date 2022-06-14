@@ -167,6 +167,9 @@ window.onload = function () {
       //console.log(res);
       socket.emit('client_store_nd_radios_in_db', res);
     }, false);
+    
+    $('#storedWateringCircuitsHeaderDiv').text("Content loaded from socketwork.js on window.load()");
+    
 
 }
 
@@ -223,4 +226,7 @@ socket.on('getDioPinState', function(data) {
   setTimeout(function(){
     $(getDioPinState).css('background-color','white'); // TODO really need comparison for green/red etc as this builds out
   }, 2000);
+});
+socket.on('radiodata', function(data) {
+	$('#storedWateringCircuitsDiv').html(data);
 });

@@ -7,9 +7,19 @@ const Schema = mongoose.Schema;
 let MdbradioSchema = new Schema({
     name: {type: String, required: true, max: 100},
     mac: {type: String, required: true},
-    description: {type: String, required: false, max: 1000},
+    description: {type: String, required: false, max: 1000}
     //test: {type: String, default: "Yeah" }, // yes requires an app restart like pm2 restart 0
-    wateringcircuits: [{ type: Schema.Types.ObjectId, ref: 'Wateringcircuit' }]
+    // for wateringcircuits we move to virtual
+    //wateringcircuits: [{ type: Schema.Types.ObjectId, ref: 'Wateringcircuit' }]
+}, {
+	toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+});
+
+MdbradioSchema.virtual('wateringcircuits', {
+	ref: 'Wateringcircuit',
+	localField: '_id',
+	foreignField: 'radio'
 });
 
 

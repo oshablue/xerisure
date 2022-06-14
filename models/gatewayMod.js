@@ -222,6 +222,11 @@ GatewaySchema.statics.setup_serial_port_and_socket_messaging = async function(io
         console.log('Server socket received client_store_nd_radios_in_db');
         Gateway.store_nd_radios_in_db(socket, radios);
     });
+    
+    socket.on('client_load_radio_data', function(macId) {
+		console.log('Server socket received client_load_radio_data');
+		Gateway.load_radio_data(socket, macId);
+	});
 
     // Call any further on-connect startup functions now
 
@@ -831,6 +836,27 @@ GatewaySchema.statics.do_node_discover = async function (socket) {
       }
     }, 14000);
 
+};
+
+
+
+GatewaySchema.statics.load_radio_data = async function( socket, macId )  {
+	//var rdat = await Mdbradio.find().populate('wateringcircuits').exec(
+	Mdbradio.find({mac: macId}).populate('wateringcircuits').lean().exec( function(err, rdat) {
+		  if (err) console.log(err);
+		  rdat = rdat[0];
+		  var formatted = "Watering circuits:<br><br>"; // JSON.stringify(rdat) + "<br><br>Watering circuits:<br><br>";
+		  if ( rdat.wateringcircuits ) {
+			formatted += "<table><tr><th>Name</th><th>#</th><th>GPIO</th><th>On</th><th>Off</th><th>Descrip</th></tr>";
+  		    for ( let wc of rdat.wateringcircuits ) {
+			  formatted += "<tr><td>" + wc.name + "</td><td>" + wc.number + "</td><td>" + wc.gpionumber + "</td><td>" + wc.onstate + "</td><td>" + wc.offstate + "</td><td>" + wc.description + "</td></tr>";
+		    }
+		    formatted += "</table>";
+		  }
+		  socket.emit('radiodata', formatted);
+	  }
+	);
+	
 };
 
 

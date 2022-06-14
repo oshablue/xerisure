@@ -52,11 +52,20 @@ exports.create = function (req, res, next) {
 
 // Details
 exports.details = function ( req, res, next ) {
-  Mdbradio.findById(req.params.id, function (err, radio) {
-    if (err) return next (err);
+  //var radio = Mdbradio.findById(req.params.id, function (err, radio) {
+  //  if (err) return next (err);
     //res.send(radio);
-    return res.render('radiodetail', {radio_details: radio}) // How to populate the wateringcircuit details with more than just the id in the view?
-  });
+    //return res.render('radiodetail', {radio_details: radio}) // How to populate the wateringcircuit details with more than just the id in the view?
+  //}).populate('wateringcircuits');
+  //return res.render('radiodetail', {radio_details: radio});
+  
+  Mdbradio.
+	findById(req.params.id).
+	populate('wateringcircuits').
+	exec( function(err, radio) {
+		if (err) return next (err);
+		return res.render('radiodetail', {radio_details: radio});
+	});
 };
 
 
@@ -80,7 +89,8 @@ exports.update = function ( req, res, next ) {
 };
 
 
-exports.addchannel = function ( req, res, next ) {
+// Uses 2-way adding for when radio also stores the watering channel ids
+exports.addchannel2way = function ( req, res, next ) {
 	var d = "post is: " +  JSON.stringify(req.body);
 	let wc = new Wateringchannel(req.body);
 	wc.save(function(err) {
@@ -100,6 +110,37 @@ exports.addchannel = function ( req, res, next ) {
 		}
 		res.send('Watering channel created (added to radio) successfully' + d);
 	});
+};
+
+
+// For when radio model schema uses virtual one-to-many
+exports.addchannel = function ( req, res, next ) {
+	var d = "post is: " +  JSON.stringify(req.body);
+	let wc = new Wateringchannel(req.body);
+	wc.save(function(err) {
+		if (err) {
+		  console.log(req);
+		  console.log("req.body: " + JSON.stringify(req.body));
+		  console.log(req.params);
+		  console.log(err);
+		  return next(err);
+		}
+		res.send('Watering channel created (added to radio) successfully ' + d);
+	});
+};
+
+
+exports.clearwateringchannels = function ( req, res, next ) {
+	
+	Mdbradio.findByIdAndUpdate(
+      req.params.id,
+      {$set: { "wateringcircuits": [] } },
+      function ( err, radio ) {
+        if ( err ) return next (err);
+        res.send('Mdbradio updated.');
+      }
+    );
+	
 };
 
 

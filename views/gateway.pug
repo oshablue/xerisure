@@ -53,6 +53,14 @@ block content
 
               button#reconnectSocketBtn.btn.btn-primary
                 | Reconnect Socket
+                
+            div(class='card mt-3')
+              div(class='card-body')
+                h4(class='card-title')
+                  Stored Watering Circuits
+                p(class='card-text')
+                  div#storedWateringCircuitsHeaderDiv
+                  div#storedWateringCircuitsDiv
 
             div(class='card mt-3')
               div(class='card-body')
@@ -197,6 +205,9 @@ block content
       var inp = $('input[name="setDigitalIoByApiMacIdInputTxt"]');
       var newMac = sel.val();
       inp.val(newMac);
+      //testFunction(newMac); // adding to populate eg watering circuits stored
+      //console.log(socket);
+      socket.emit('client_load_radio_data', newMac);
     }
 
     function pinCycleDurationMinutesFcn() {
