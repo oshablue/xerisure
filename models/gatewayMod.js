@@ -841,18 +841,34 @@ GatewaySchema.statics.do_node_discover = async function (socket) {
 
 
 GatewaySchema.statics.load_radio_data = async function( socket, macId )  {
-	//var rdat = await Mdbradio.find().populate('wateringcircuits').exec(
+	
+	//macId += 'xxxx'; // crude test for bad radio macId
+	
 	Mdbradio.find({mac: macId}).populate('wateringcircuits').lean().exec( function(err, rdat) {
 		  if (err) console.log(err);
 		  rdat = rdat[0];
-		  var formatted = "Watering circuits:<br><br>"; // JSON.stringify(rdat) + "<br><br>Watering circuits:<br><br>";
-		  if ( rdat.wateringcircuits ) {
-			formatted += "<table><tr><th>Name</th><th>#</th><th>GPIO</th><th>On</th><th>Off</th><th>Descrip</th></tr>";
+		  //var formatted = "Watering circuits:<br><br>"; // JSON.stringify(rdat) + "<br><br>Watering circuits:<br><br>";
+		  var formatted = "";
+		  if ( rdat && rdat.wateringcircuits ) {
+		    // TODO table class for mobile or update media css
+			formatted += "<table class=\"table\"><tr><th>#</th><th>Name</th><th>GPIO</th><th>On</th><th>Off</th><th>Descrip</th></tr>";
   		    for ( let wc of rdat.wateringcircuits ) {
-			  formatted += "<tr><td>" + wc.name + "</td><td>" + wc.number + "</td><td>" + wc.gpionumber + "</td><td>" + wc.onstate + "</td><td>" + wc.offstate + "</td><td>" + wc.description + "</td></tr>";
+			  formatted += "<tr>"; 
+			  formatted += "<td>" + wc.number + "</td><td>" + wc.name + "</td><td>" + wc.gpionumber + "</td><td>"; // + wc.onstate;
+			  formatted += "<button class=\"btn btn-primary\" onclick=\" socket.emit('client_set_digital_io', \'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.onstate + "\');\">On (" + wc.onstate + ")</button>"; // socket.emit('client_set_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
+              formatted += "</td><td>"; // + wc.offstate;
+              formatted += "<button class=\"btn btn-primary\" onclick=\" socket.emit('client_set_digital_io', \'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.offstate + "\');\">Off (" + wc.offstate + ")</button>";
+              formatted += "</td><td>" + wc.description + "</td>";
+			  formatted += "</tr>";
 		    }
 		    formatted += "</table>";
+		  } else {
+			  // As of yet untested TODO-TEST
+			  formatted += "No watering circuits found for this radio. Radio data is:<br><br>";
+			  formatted += JSON.stringify(rdat);
+			  formatted += "<br><br>for macId: " + macId;
 		  }
+		  // TODO add function or option etc to check for whether this is off or on state and set log correctly and state correctly 
 		  socket.emit('radiodata', formatted);
 	  }
 	);

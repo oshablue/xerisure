@@ -168,7 +168,8 @@ window.onload = function () {
       socket.emit('client_store_nd_radios_in_db', res);
     }, false);
     
-    $('#storedWateringCircuitsHeaderDiv').text("Content loaded from socketwork.js on window.load()");
+    //$('#storedWateringCircuitsHeaderDiv').text("Content loaded from socketwork.js on window.load()");
+    $('#storedWateringCircuitsDiv').text("Content loaded from socketwork.js on window.load()");
     
 
 }
