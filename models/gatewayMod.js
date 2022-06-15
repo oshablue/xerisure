@@ -851,7 +851,7 @@ GatewaySchema.statics.load_radio_data = async function( socket, macId )  {
 		  var formatted = "";
 		  if ( rdat && rdat.wateringcircuits ) {
 		    // TODO table class for mobile or update media css
-			formatted += "<table class=\"table\"><tr><th>#</th><th>Name</th><th>GPIO</th><th>On</th><th>Off</th><th>Descrip</th></tr>";
+			formatted += "<table class=\"table table-striped table-sm table-responsive-sm\"><tr><th>#</th><th>Name</th><th>GPIO</th><th>On</th><th>Off</th><th>Descrip</th></tr>";
   		    for ( let wc of rdat.wateringcircuits ) {
 			  formatted += "<tr>"; 
 			  formatted += "<td>" + wc.number + "</td><td>" + wc.name + "</td><td>" + wc.gpionumber + "</td><td>"; // + wc.onstate;
