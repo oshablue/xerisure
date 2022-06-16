@@ -10,6 +10,7 @@ var XBee = require('./xbeeMod').XBee;
 var Mdbradio = require('./mdbradioMod');
 var Utils = require('../lib/utils');
 var sleep = Utils.sleep;
+var Log = require('./logMod');
 
 
 var mongoose = require('mongoose');
@@ -473,6 +474,12 @@ GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, stat
     console.log("");
     console.log("gatewayMod: set_digital_io called - set to: " + state + " for pin " + pin + " at MAC ID: " + macid);
     port.flush();
+    
+    // Testing 
+    // Log entry here (?) - should we log attempted vs results separately? (yes probably for most granular)
+    //Log.createDioEntryByMacAndPin(macid, pin, state);
+    //return;
+    // </Testing>
 
     await XBee.EnterCommandMode(port, this_socket);
 
@@ -522,6 +529,10 @@ GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, stat
     // Check the work now by reading back the pin state
     console.log("gatewayMod: set_digital_io: right before calling get_digital_io for confirmation...");
     await Gateway.get_digital_io(this_socket, macid, pin);
+    
+    // Log entry here (?) - should we log attempted vs results separately? (yes probably for most granular)
+    // TODO add description that includes the result of the get_digital_io too? etc.
+    Log.createDioEntryByMacAndPin(macid, pin, state); 
 
     // Notify
     console.log("gatewayMod: set_digital_io: right before calling set up set_digital_io email notification...");

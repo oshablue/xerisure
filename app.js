@@ -32,7 +32,7 @@ var gatewayRouter = require('./routes/gatewayRou');
 var mdbradioRouter = require('./routes/mdbradioRou');
 var devRouter = require('./routes/devRou');
 var wateringcircuitRouter = require('./routes/wateringcircuitRou');
-
+var logRouter = require('./routes/logRou');
 
 
 
@@ -81,6 +81,7 @@ app.use('/gateway', gatewayRouter);
 app.use('/mdbradios', mdbradioRouter);
 app.use('/dev', devRouter);
 app.use('/wateringcircuits', wateringcircuitRouter);
+app.use('/logs', logRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

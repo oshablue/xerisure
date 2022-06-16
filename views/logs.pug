@@ -1,0 +1,43 @@
+extends layout
+
+block scripts
+
+
+block title
+  h1= siteName
+  p #{siteName} stored log entries listing
+  hr
+
+block content
+  // https://getbootstrap.com/docs/4.1/content/figures/
+  div(class='card')
+    img(class='card-img-top' src='')
+    div(class='card-body')
+      #summary-chart-title
+        h3(class='card-title') Logs
+        h4(class='card-subtitle') Currently: log entries for watering on/off events
+      #summary-chart
+        // Div to hold the summary chart/graph
+      #radios_list
+        // TODO list as links for editing descriptions etc.
+        #{JSON.stringify(log_entries)}
+        table.table.table-striped
+          tr
+            th Timestamp
+            th WateringCircuit
+            th EventType
+            th Description
+          
+          each r in log_entries
+            tr
+              td= r.createdAt
+              td (#{r.wateringcircuit.number}) #{r.wateringcircuit.name}
+              td= r.eventType
+              td= r.description
+
+
+
+
+
+
+  script.
