@@ -3,6 +3,8 @@ const Schema = mongoose.Schema;
 
 var Log = require('./logMod');
 
+const dayjs = require('dayjs');
+
 
 let WateringcircuitSchema = new Schema({
 	name: {type: String, required: false, max: 100},
@@ -36,23 +38,28 @@ WateringcircuitSchema.virtual('lastActiveString').get( function () {
     return this.logEvents[0].eventType + " " + this.logEvents[0].createdAt + " <b>Only 1 log entry!</b>";
   }
   var recentLe = this.logEvents[0];
-  var recTimeS = new Date (recentLe.createdAt.getTime());
+  var recTimeS = new dayjs (recentLe.createdAt.getTime());
   var previousLe = this.logEvents[1];
+  var prevTimeS = new dayjs (previousLe.createdAt.getTime());
   var wateringDur = recentLe.createdAt.getTime() - previousLe.createdAt.getTime(); // ms
   var res = "";
   var classStr = "";
+  var titleStr = "";
   if ( recentLe.eventType != 'waterOff' ) {
     classStr = "logEventBad";
+    titleStr = "Hmmm... most recent event should probably be waterOff (not waterOn)";
   }
-  res += "<span class=\"" + classStr + "\">";
-  res += recentLe.eventType + " " + recTimeS.toString("DD/MM/YY h:mm:ss") + "</span><br>"; // need datejs ? to get the formatted string output?
+  res += "<span class=\"" + classStr + "\" title=\"" + titleStr + "\">";
+  res += recentLe.eventType + "</span> " + recTimeS.format("MMM-DD/YY h:mm:ssA").toString() + "<br>"; // need datejs ? to get the formatted string output?
   classStr = "";
+  titleStr = "";
   if ( previousLe.eventType != 'waterOn' ) {
     classStr = "logEventBad";
+    titleStr = "Hmmm... 2nd most recent event should probably be waterOn (not waterOff)";
   }
-  res += "<span class=\"" + classStr + "\">";
-  res += previousLe.eventType + " " + previousLe.createdAt + "</span><br>";
-  res += "(for " + Math.round(wateringDur/60000.0, 2) + " mins)"; // change to toFixed maybe for actual decimal places?
+  res += "<span class=\"" + classStr + "\" title=\"" + titleStr + "\">";
+  res += previousLe.eventType + "</span> " + prevTimeS.format("MMM-DD/YY h:mm:ssA").toString() + "<br>";
+  res += "(for " + Math.round(wateringDur/60000.0, 2) + " min.)"; // change to toFixed maybe for actual decimal places?
   
   return res; // + "<br><br>" + JSON.stringify([this.logEvents[0], this.logEvents[1]]);
 });

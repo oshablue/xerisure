@@ -218,6 +218,16 @@ GatewaySchema.statics.setup_serial_port_and_socket_messaging = async function(io
         console.log('Server socket receive client_set_digital_io_with_timed_reset');
         Gateway.set_digital_io_with_timed_reset(socket, macid, pin, timedstate, durationMinutes);
     });
+    
+    socket.on('client_set_digital_io_with_timed_reset_known_state_values', function( macid, pin, timedstate, durationMinutes, offstate) {
+        console.log('Server socket receive client_set_digital_io_with_timed_reset_known_state_values');
+        console.log('durationMinutes: ' + durationMinutes);
+        if ( !durationMinutes || !parseInt(durationMinutes) || parseInt(durationMinutes) < 0 || parseInt(durationMinutes) > 2880 ) { // TODO max config minutes watering length
+			console.log('durationMinutes: missing or incorrect parameter');
+		}
+        //console.log(JSON.stringify(arguments));
+        Gateway.set_digital_io_with_timed_reset_known_state_values(socket, macid, pin, timedstate, durationMinutes, offstate);
+    });
 
     // Not implemented
     socket.on('client_store_nd_radios_in_db', function(radios) {
@@ -452,8 +462,46 @@ GatewaySchema.statics.set_digital_io_with_timed_reset = async function ( socket,
   await Gateway.set_digital_io( socket, macid, pin, state);
 
   setTimeout( function() {
-    console.log("Will reset pin " + pin + " to " + currentPinState + " in " + ((durMins) * 1000) + " minutes (plus base 5-second delay).");
+    console.log("Will reset pin " + pin + " to " + currentPinState + " in " + durMins + " minutes (plus base 5-second delay).");
     Gateway.set_digital_io( socket, macid, pin, currentPinState);
+  }, timeMs );
+
+}
+
+
+
+
+
+
+
+GatewaySchema.statics.set_digital_io_with_timed_reset_known_state_values = async function ( socket, macid, pin, state, durMins, offstate ) {
+
+  console.log("");
+  console.log("gatewayMod: set_digital_io_with_timed_reset_known_state_values started ... duration is: " + durMins + "(Will add a standard base delay of 5 seconds)");
+
+  var timeMs = (durMins * 60. * 1000.) + (5 * 1000.);
+
+  var maxtries = 4;
+  var i = 0;
+  var currentPinState = -1;
+  //while ( i++ < maxtries) {
+    //currentPinState = await Gateway.get_digital_io( socket, macid, pin );
+    //console.log("Gateway model: set_digital_io_with_timed_reset: get_digital_io: value: " + currentPinState);
+    //if ( currentPinState < 10 && currentPinState > -1 ) {
+      //break;
+    //}
+  //}
+  //if ( i >= maxtries ) {
+    //console.log("Couldn't get a reasonable current pin state (not between 0 and 9) maxtries: " + i + " with last currentPinState: " + currentPinState);
+    //console.log("Maybe try checking the MAC ID selection and the Pin Number Settings as well as power to devices.");
+    //return -1; //
+  //}
+
+  await Gateway.set_digital_io( socket, macid, pin, state);
+
+  setTimeout( function() {
+    console.log("Will reset pin " + pin + " to " + offstate + " in " + durMins + " minutes (plus base 5-second delay).");
+    Gateway.set_digital_io( socket, macid, pin, offstate );
   }, timeMs );
 
 }
@@ -866,7 +914,7 @@ GatewaySchema.statics.load_radio_data = async function( socket, macId )  {
 		  var formatted = "";
 		  if ( rdat && rdat.wateringcircuits ) {
 		    // TODO table class for mobile or update media css
-			formatted += "<table class=\"table table-striped table-sm table-responsive-sm\"><tr><th>#</th><th>Name</th><th>GPIO</th><th>On</th><th>Off</th><th>Descrip</th><th>Last Active</th></tr>";
+			formatted += "<table class=\"table table-striped table-sm table-responsive-sm\"><tr><th>#</th><th>Name</th><th>GPIO</th><th>On</th><th>Off</th><th>Timed Cycle</th><th>Descrip</th><th>Last Active</th></tr>";
   		    for ( let wc of rdat.wateringcircuits ) {
 			  wc = new Wateringcircuit(wc);
 			  formatted += "<tr>"; 
@@ -874,7 +922,10 @@ GatewaySchema.statics.load_radio_data = async function( socket, macId )  {
 			  formatted += "<button class=\"btn btn-primary\" onclick=\" socket.emit('client_set_digital_io', \'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.onstate + "\');\">On (" + wc.onstate + ")</button>"; // socket.emit('client_set_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
               formatted += "</td><td>"; // + wc.offstate;
               formatted += "<button class=\"btn btn-primary\" onclick=\" socket.emit('client_set_digital_io', \'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.offstate + "\');\">Off (" + wc.offstate + ")</button>";
-              formatted += "</td><td>" + wc.description + "</td><td>";
+              formatted += "</td><td>";
+              formatted += "<button class=\"btn btn-primary\" onclick=\"waterCycle(\'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.onstate + "\', \'" + wc.offstate + "\');\">Run</button>";
+              formatted += "</td><td>";
+              formatted += wc.description + "</td><td>";
               formatted += wc.get('lastActiveString') + "</td>" //wc.logEvents + "</td>";
 			  formatted += "</tr>";
 		    }

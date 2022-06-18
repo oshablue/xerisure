@@ -59,6 +59,9 @@ block content
                 h4(class='card-title')
                   Stored Watering Circuits
                 p(class='card-text')
+                  |Water for 
+                  input#waterCycleDurationMinutesTxt(type='text', placeholder='45', class='m-0')
+                  | (minutes)
                   div#storedWateringCircuitsHeaderDiv
                   div#storedWateringCircuitsDiv
 
@@ -215,4 +218,9 @@ block content
       var inp = $('input[id="pinCycleDurationMinutesTxt"]');
       var pinDur = sel.val();
       inp.val(pinDur);
+    }
+    
+    function waterCycle(macId, pin, onstate, offstate) {
+      var inp = $('input[id="waterCycleDurationMinutesTxt"]');
+      socket.emit('client_set_digital_io_with_timed_reset_known_state_values', macId, pin, onstate, inp.val(), offstate);
     }
