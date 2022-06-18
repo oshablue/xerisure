@@ -11,6 +11,7 @@ var Mdbradio = require('./mdbradioMod');
 var Utils = require('../lib/utils');
 var sleep = Utils.sleep;
 var Log = require('./logMod');
+var Wateringcircuit = require('./wateringcircuitMod.js');
 
 
 var mongoose = require('mongoose');
@@ -855,21 +856,26 @@ GatewaySchema.statics.load_radio_data = async function( socket, macId )  {
 	
 	//macId += 'xxxx'; // crude test for bad radio macId
 	
-	Mdbradio.find({mac: macId}).populate('wateringcircuits').lean().exec( function(err, rdat) {
+	Mdbradio.find({mac: macId}).populate({
+		    path: 'wateringcircuits', 
+		    populate: { path: 'logEvents' }
+		  }).lean().exec( function(err, rdat) {
 		  if (err) console.log(err);
 		  rdat = rdat[0];
 		  //var formatted = "Watering circuits:<br><br>"; // JSON.stringify(rdat) + "<br><br>Watering circuits:<br><br>";
 		  var formatted = "";
 		  if ( rdat && rdat.wateringcircuits ) {
 		    // TODO table class for mobile or update media css
-			formatted += "<table class=\"table table-striped table-sm table-responsive-sm\"><tr><th>#</th><th>Name</th><th>GPIO</th><th>On</th><th>Off</th><th>Descrip</th></tr>";
+			formatted += "<table class=\"table table-striped table-sm table-responsive-sm\"><tr><th>#</th><th>Name</th><th>GPIO</th><th>On</th><th>Off</th><th>Descrip</th><th>Last Active</th></tr>";
   		    for ( let wc of rdat.wateringcircuits ) {
+			  wc = new Wateringcircuit(wc);
 			  formatted += "<tr>"; 
 			  formatted += "<td>" + wc.number + "</td><td>" + wc.name + "</td><td>" + wc.gpionumber + "</td><td>"; // + wc.onstate;
 			  formatted += "<button class=\"btn btn-primary\" onclick=\" socket.emit('client_set_digital_io', \'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.onstate + "\');\">On (" + wc.onstate + ")</button>"; // socket.emit('client_set_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
               formatted += "</td><td>"; // + wc.offstate;
               formatted += "<button class=\"btn btn-primary\" onclick=\" socket.emit('client_set_digital_io', \'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.offstate + "\');\">Off (" + wc.offstate + ")</button>";
-              formatted += "</td><td>" + wc.description + "</td>";
+              formatted += "</td><td>" + wc.description + "</td><td>";
+              formatted += wc.get('lastActiveString') + "</td>" //wc.logEvents + "</td>";
 			  formatted += "</tr>";
 		    }
 		    formatted += "</table>";

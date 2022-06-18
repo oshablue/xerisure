@@ -23,3 +23,6 @@ pre {
   border-radius: 0.35rem;
 }
 
+.logEventBad {
+  background-color: red;
+}

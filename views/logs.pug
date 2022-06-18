@@ -20,7 +20,6 @@ block content
         // Div to hold the summary chart/graph
       #radios_list
         // TODO list as links for editing descriptions etc.
-        #{JSON.stringify(log_entries)}
         table.table.table-striped
           tr
             th Timestamp
@@ -34,8 +33,8 @@ block content
               td (#{r.wateringcircuit.number}) #{r.wateringcircuit.name}
               td= r.eventType
               td= r.description
-
-
+      
+        #{JSON.stringify(log_entries)}
 
 
 

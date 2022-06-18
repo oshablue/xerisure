@@ -23,12 +23,25 @@ block content
         |nodeuser$ tail -f ~/.pm2/logs/xeri-out.log
         |# or xeri-error.log
 
+
     p To stop the pm2 running app ("xeri") for example to launch dev on same port during modifications:
       Log in as the pm2 launch user, "nodeuser"
       pre
         |$ ssh nodeuser@ip -p [our port]
         |nodeuser$ pm2 stop xeri
+        | # or
+        |$ pm2 stop 0
     p And then when we're ready for production (ish) again, just pm2 start xeri, or I like the cleanliness of validation just rebooting the system, to make sure auto launch works.
+
+
+    p Other options to restart after changes or see log continuous output, eg.
+      pre
+        |$ pm2 restart 0
+        | # or
+        |$ pm2 start 0
+        | # and then for logs
+        |$ pm2 log
+
 
     p To develop, log in again as the main dev as-hinted user and, examples:
       pre
@@ -39,8 +52,15 @@ block content
         |as-hinted$ DEBUG=xerisure:* node ./bin/www
         |# there are several options to run as such
 
-    p Launch VNC on port 5901 to use Atom on the desktop remotely:
-      pre 
+
+    p Also development options, using nodemod to reload app when changes to files require so:
+      pre
+        |$ DEBUG=xerisure:* ./node_modules/nodemon/bin/nodemon.js ./bin/www/
+	    
+	
+
+    p Launch VNC on port 5901 to use Atom (or now Geany as Atom over xfce4 with Ubuntu 20.04.4 broke) on the desktop remotely:
+      pre
         |$ ssh as-hinted@ip -p [our port]
         |as-hinted$ vncserver
         |# then on macOS you can just use:
@@ -58,6 +78,14 @@ block content
         |nodeuser$ cd ~/xerisure
         |git pull
         |#(use for now bitbucket personal user)
+        
+        
+    p When git remote origin is not available, backing up to local dev and external drive using eg
+      pre
+        |$ sftp -P altPort nodeuser@our.lan.i.p
+        |> get xerisure.tar.gz
+      after tar/zipping the directory on the dev/run machine
+
 
   h2 Serial Port Socket Status and Log
   pre#connection
