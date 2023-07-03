@@ -96,8 +96,86 @@ function onListening() {
   debug('Listening on ' + bind);
 }
 
+
+
+
+
+// var sport; // SerialPort global???
+// app.locals.sport = sport;
+
 var Gateway = require('../models/gatewayMod').Gateway;
-Gateway.start(io);
+
+var apiPacketString;
+var apiStringTrans;
+var stringBuffer = "";
+
+var SerialPort = require('serialport');
+var sp = new SerialPort( '/dev/ttyUSB0', {
+  baudRate: 9600,
+  autoOpen: false
+});
+
+sp.on('open', function() {
+  console.log('www top level: port.on(open): serial port open ... ');
+});
+
+sp.on('data', function(data) {
+  //io.of('/gateway').emit('serialdataRx', rdat);
+  //console.log('serial data received: ', rdat);
+
+  //socket.emit('data', "<br>Socket ID: " + socket.id + "<br>");
+  //io.emit('data', "<br>Socket ID: " + socket.id + "<br>");
+  //console.log(socket.id);
+  //socket.emit('data', "<br>Raw in rcvd: " + data.toString().replace("\r","<br>"));
+  io.emit('data', "<br>Raw in rcvd: " + data.toString().replace("\r","<br>"));
+  // was replace with <br> // lines terminated with 0x0d
+  // or replace with " " (using "" creates a problem)
+
+  // API type data
+  // TODO Complete API packet parsing implementation and DRY/Encap etc.
+  var s = " ";
+  var bufAsString = " ";
+  for ( var i = 0; i < data.length; i++ ) {
+    s = "0x" + ('0' + (data[i] & 0xFF).toString(16)).slice(-2);
+    bufAsString += " " + s;
+    if ( s == '0x7e' ) {
+      // these three were socket.emit within the Gateway code
+      io.emit('data', "<br>API Packet start rcvd: Flush to screen and reset the prior API Packet hex and ASCII keepers: <br>");
+      io.emit('data', "apiPacketString: " + apiPacketString + "<br>");
+      io.emit('data', "apiStringTrans:  " + apiStringTrans + "<br>Done flushes.<br>");
+      apiPacketString = s;
+      apiStringTrans = '----';
+    } else {
+      apiPacketString += " " + s;
+      if ( parseInt(s) > 32 && parseInt(s) < 127 ) {
+        apiStringTrans += " " + "   " + String.fromCharCode(parseInt(s));
+      } else {
+        apiStringTrans += " " + s;
+      }
+    }
+  }
+  // these two were socket.emit within the old gateway code
+  io.emit('data', "<br>Current bufAsString: " + bufAsString + "<br>");
+  io.emit('data', "<br>Current apiPacketString: " + apiPacketString + "<br>");
+
+  stringBuffer += data.toString();              // Accumulate between data received until buffer is dumped, etc.
+
+  // Alert: Until complete API is implemented, we'll be one buffer short so request one extra frame etc.
+
+  console.log("port data received:");
+  console.log(data);
+
+  app.locals.apiPacketString = apiPacketString;
+
+});
+
+sp.on('error', function(err) {
+  console.log('SerialPort port Error: ', err.message + err.stack);
+});
+
+sp.open();
+
+var Gateway = require('../models/gatewayMod').Gateway;
 
 io.of('/gateway').on('connection', async function (socket) {
   
@@ -113,4 +191,120 @@ io.of('/gateway').on('connection', async function (socket) {
       console.log(' %s sockets connected', io.engine.clientsCount);
   });
 
+  // socket.on('writeserialdata', function(wdat) {
+  //   //sp.flush(); // TODO 
+  //   console.log('www top level: got serial dat write request');
+  //   sp.write(wdat, function(err, res) {
+  //     console.log('writeserialdata ', wdat);
+  //   });
+  // });
+
+  // nope
+  //io.of('/gateway').emit('wdata', "test from within top");
+
+  //Gateway.setup_serial_port_and_socket_messaging(io, socket);
+
+  
+
+  // Do you miss ajax and post?
+  // Or are socket(s) awesome here?
+  socket.on('client_set_destination_mac_id', function(macid) {
+      console.log("Server socket received client_set_destination_mac_id of " + macid);
+      Gateway.set_destination_radio_mac_id(socket, macid);
+  });
+
+  socket.on('client_set_digital_io', function(macid, pin, state) {
+      console.log("Server socket received client_set_digital_io of "
+          + macid + " for pin " + pin
+          + " to state " + state);
+      Gateway.set_digital_io(socket, macid, pin, state);
+  });
+
+  socket.on('client_get_digital_io', function(macid, pin, state) {
+      console.log("Server socket received client_get_digital_io of "
+          + macid + " for pin " + pin
+          + " to state " + state);
+      Gateway.get_digital_io(socket, macid, pin, sp);
+  });
+
+  socket.on('client_get_gateway_radio_serial_link_destination_mac_id_info', function() {
+      console.log('Server socket received client_get_gateway_radio_serial_link_destination_mac_id_info');
+      Gateway.get_gateway_xbee_dest_mac(socket);
+  });
+
+  socket.on('client_get_gateway_radio_mac_id_info', function() {
+      console.log('Server socket received client_get_gateway_radio_mac_id_info');
+      Gateway.get_gateway_xbee_mac(socket);
+  });
+
+  socket.on('client_get_remote_radio_dios', function(macid) {
+      console.log('Server socket received client_get_remote_radio_dios');
+      Gateway.get_remote_radio_dios(socket, macid);
+  });
+
+  socket.on('client_do_node_discover', function() {
+      console.log('Server socket received client_do_node_discover');
+      Gateway.do_node_discover(socket);
+  });
+
+  socket.on('client_get_gateway_radio_dios', function() {
+      console.log('Server socket received client_get_gateway_radio_dios');
+      Gateway.get_gateway_radio_dios(socket);
+  });
+
+  socket.on('client_get_db_radio_mac_ids', function() {
+      console.log('Server socket received client_get_db_radio_mac_ids');
+      Gateway.get_db_radio_mac_ids(socket);
+  });
+
+  socket.on('client_pop_db_radio_mac_ids', function() {
+      console.log('Server socket received client_pop_db_radio_mac_ids');
+      Gateway.pop_db_radio_mac_ids(socket);
+  });
+
+  socket.on('client_set_digital_io_with_timed_reset', function( macid, pin, timedstate, durationMinutes) {
+      console.log('Server socket receive client_set_digital_io_with_timed_reset');
+      Gateway.set_digital_io_with_timed_reset(socket, macid, pin, timedstate, durationMinutes);
+  });
+
+  socket.on('client_set_digital_io_with_timed_reset_known_state_values', function( macid, pin, timedstate, durationMinutes, offstate) {
+      console.log('Server socket receive client_set_digital_io_with_timed_reset_known_state_values');
+      console.log('durationMinutes: ' + durationMinutes);
+      if ( !durationMinutes || !parseInt(durationMinutes) || parseInt(durationMinutes) < 0 || parseInt(durationMinutes) > 2880 ) { // TODO max config minutes watering length
+        console.log('durationMinutes: missing or incorrect parameter');
+      }
+      //console.log(JSON.stringify(arguments));
+      Gateway.set_digital_io_with_timed_reset_known_state_values(socket, macid, pin, timedstate, durationMinutes, offstate);
+  });
+
+  // Not implemented
+  socket.on('client_store_nd_radios_in_db', function(radios) {
+      console.log('Server socket received client_store_nd_radios_in_db');
+      Gateway.store_nd_radios_in_db(socket, radios);
+  });
+
+  socket.on('client_load_radio_data', function(macId) {
+    console.log('Server socket received client_load_radio_data');
+    Gateway.load_radio_data(socket, macId);
+  });
+
+  Gateway.pop_db_radio_mac_ids(socket);
+  
+
 });
+
+// app.use((req, res, next) => {
+//   //req.gw = req.gw || {};
+//   //req.theApp = app;
+//   req.sp = sp;
+// });
+
+// works
+//app.set('sp', sp);
+
+// var Gateway = require('../models/gatewayMod').Gateway;
+// Gateway.start(io); 
+// start(io) in gatewayMod.js sets event on connection to call 
+// setup_serial_port_and_socket_messaging(io, socket)
+
+

@@ -6,7 +6,12 @@
 // see:
 // https://stackoverflow.com/questions/9230932/file-structure-of-mongoose-nodejs-project
 
+// Our early work before moving to library:
 var XBee = require('./xbeeMod').XBee;
+
+//var xbeeApi = require('xbee-api');
+
+
 var Mdbradio = require('./mdbradioMod');
 var Utils = require('../lib/utils');
 var sleep = Utils.sleep;
@@ -22,6 +27,7 @@ var GatewaySchema = new Schema({
 
 });
 
+//var app = require('../app');
 
 //
 // Developer resource links:
@@ -39,11 +45,12 @@ var GatewaySchema = new Schema({
 
 
 var SerialPort = require('serialport');
-var port_name;
-var port;
-var apiPacketString;
-var apiStringTrans;
-var stringBuffer = "";
+//var port_name;
+//var port;
+// var apiPacketString;
+// var apiStringTrans;
+// var stringBuffer = "";
+
 
 // Notifications
 const nodemailer = require('nodemailer');
@@ -69,184 +76,243 @@ var mailOptions = {
 
 
 
-GatewaySchema.statics.start = function(io) {
-  io.of('/gateway').on('connection', async function(socket) {
-    Gateway.setup_serial_port_and_socket_messaging(io, socket);
+GatewaySchema.statics.start = function(io){ //, sport) {
+  io.of('/gateway').on('connection', async function(socket) { //, sport) {
+    Gateway.setup_serial_port_and_socket_messaging(io, socket); //, sport);
+    // nope that doesn't make repeat port.on('data')s go away
+    // socket.on('disconnect', function() {
+    //   socket.removeAllListeners();
+    // });
   });
 }
 
 
-GatewaySchema.statics.setup_serial_port_and_socket_messaging = async function(io, socket) {
+GatewaySchema.statics.setup_serial_port_and_socket_messaging = async function(io, socket) { //, port) {
 
-    if ( !port ) {
-      Gateway.initialize_gateway_serial();
-    }
+  //port = app.locals.sport;
 
-    // TODO
-    // error handling if port not set up etc.
-    // may need to move elsewhere as we want this either:
-    //  - open on gateway launch to do background items and checks independently
-    //    - omit and just send port status to connected socket
-    //  - open on socket client request if need to change port
-    //    - Soln: Do indepently with close and re-open controls
-    if ( !port.isOpen ) {
-        console.log("...serial port not yet open...call open() now...");
-        io.emit('data', 'serial port closed - attempting to open...<br>');
-        //socket.emit('data', 'serial port closed - attempting to open...<br>');
-        port.open();
-        await sleep(2000); // TODO move to promises
-        // without this sleep delay, next statement isOpen check will immediately
-        // still show not open (yet)
-    } else {
-        console.log("...serial port is already open...");
-    }
+  console.log("setup_serial_port_and_socket_messaging");
+  //io.emit('data', "test"); //nope
+  //socket.$emit.apply(socket, ['writeserialdata', "test"]);
+  //console.log("sp:");
+  //console.log(JSON.stringify(sp));
 
-    if ( port.isOpen ) {
-        console.log("... serial port is open ...");
-        //socket.emit('data', '<br>gateway serial port is open<br>');
-        io.emit('data', '<br>gateway serial port is open<br>');
-    } else {
-        console.log("... serial port is not open ...");
-        //socket.emit('data', '<br>gateway serial port is not open (but it ought to be ... err?)<br>');
-        io.emit('data', '<br>gateway serial port is not open (but it ought to be ... err?)<br>');
-    }
+  // if ( !port ) {
+  //   console.log("setup_serial_port_and_socket_messaging: !port, so calling initialize_gateway_serial");
+  //   var items = Gateway.initialize_gateway_serial(port);
+  //   port = items.port;
+  // }
 
-    // Do any on connection link proof here
-    // Sometimes on reload page, we get 2 of these fired
-    // Just for testing
-    //Gateway.onSocketConnect();
-    // NOTE if using the above or start up serial, then note that serial needs
-    // not only open, but also sufficient sleep delay to allow full open process
+  // TODO
+  // error handling if port not set up etc.
+  // may need to move elsewhere as we want this either:
+  //  - open on gateway launch to do background items and checks independently
+  //    - omit and just send port status to connected socket
+  //  - open on socket client request if need to change port
+  //    - Soln: Do indepently with close and re-open controls
+  // if ( !port.isOpen ) {
+  //     console.log("...serial port not yet open...call open() now...");
+  //     io.emit('data', 'serial port closed - attempting to open...<br>');
+  //     //socket.emit('data', 'serial port closed - attempting to open...<br>');
+  //     port.open();
+  //     await sleep(2000); // TODO move to promises
+  //     // without this sleep delay, next statement isOpen check will immediately
+  //     // still show not open (yet)
+  // } else {
+  //     console.log("...serial port is already open...");
+  // }
 
-    // TODO error handling - e.g. if port not yet instantiated?
-    port.on('data', function(data){
-        socket.emit('data', "<br>Raw in rcvd: " + data.toString().replace("\r","<br>"));
-        // was replace with <br> // lines terminated with 0x0d
-        // or replace with " " (using "" creates a problem)
+  // if ( port.isOpen ) {
+  //     console.log("... serial port is open ...");
+  //     //socket.emit('data', '<br>gateway serial port is open<br>');
+  //     io.emit('data', '<br>gateway serial port is open<br>');
+  // } else {
+  //     console.log("... serial port is not open ...");
+  //     //socket.emit('data', '<br>gateway serial port is not open (but it ought to be ... err?)<br>');
+  //     io.emit('data', '<br>gateway serial port is not open (but it ought to be ... err?)<br>');
+  // }
 
-        // API type data
-        // TODO Complete API packet parsing implementation and DRY/Encap etc.
-        var s = " ";
-        var bufAsString = " ";
-        for ( var i = 0; i < data.length; i++ ) {
-          s = "0x" + ('0' + (data[i] & 0xFF).toString(16)).slice(-2);
-          bufAsString += " " + s;
-          if ( s == '0x7e' ) {
-            socket.emit('data', "<br>API Packet start rcvd: Flush to screen and reset the prior API Packet hex and ASCII keepers: <br>");
-            socket.emit('data', "apiPacketString: " + apiPacketString + "<br>");
-            socket.emit('data', "apiStringTrans:  " + apiStringTrans + "<br>Done flushes.<br>");
-            apiPacketString = s;
-            apiStringTrans = '----';
+  // Do any on connection link proof here
+  // Sometimes on reload page, we get 2 of these fired
+  // Just for testing
+  //Gateway.onSocketConnect();
+  // NOTE if using the above or start up serial, then note that serial needs
+  // not only open, but also sufficient sleep delay to allow full open process
+
+  // TODO error handling - e.g. if port not yet instantiated?
+  // port.on('data', function(data){
+  //     socket.emit('data', "<br>Socket ID: " + socket.id + "<br>");
+  //     console.log(socket.id);
+  //     socket.emit('data', "<br>Raw in rcvd: " + data.toString().replace("\r","<br>"));
+  //     // was replace with <br> // lines terminated with 0x0d
+  //     // or replace with " " (using "" creates a problem)
+
+  //     // API type data
+  //     // TODO Complete API packet parsing implementation and DRY/Encap etc.
+  //     var s = " ";
+  //     var bufAsString = " ";
+  //     for ( var i = 0; i < data.length; i++ ) {
+  //       s = "0x" + ('0' + (data[i] & 0xFF).toString(16)).slice(-2);
+  //       bufAsString += " " + s;
+  //       if ( s == '0x7e' ) {
+  //         socket.emit('data', "<br>API Packet start rcvd: Flush to screen and reset the prior API Packet hex and ASCII keepers: <br>");
+  //         socket.emit('data', "apiPacketString: " + apiPacketString + "<br>");
+  //         socket.emit('data', "apiStringTrans:  " + apiStringTrans + "<br>Done flushes.<br>");
+  //         apiPacketString = s;
+  //         apiStringTrans = '----';
+  //       } else {
+  //         apiPacketString += " " + s;
+  //         if ( parseInt(s) > 32 && parseInt(s) < 127 ) {
+  //           apiStringTrans += " " + "   " + String.fromCharCode(parseInt(s));
+  //         } else {
+  //           apiStringTrans += " " + s;
+  //         }
+  //       }
+  //     }
+  //     socket.emit('data', "<br>Current bufAsString: " + bufAsString + "<br>");
+  //     socket.emit('data', "<br>Current apiPacketString: " + apiPacketString + "<br>");
+
+  //     stringBuffer += data.toString();              // Accumulate between data received until buffer is dumped, etc.
+
+  //     // Alert: Until complete API is implemented, we'll be one buffer short so request one extra frame etc.
+
+  //     console.log("port data received:");
+  //     console.log(data);
+  // }); // end of port.on data
+
+  
+  // app.locals.sport = port;
+
+  
+  socket.on('serialdataRx', function(data) {
+
+      socket.emit('data', "<br>Socket ID: " + socket.id + "<br>");
+      console.log(socket.id);
+      socket.emit('data', "<br>Raw in rcvd: " + data.toString().replace("\r","<br>"));
+      // was replace with <br> // lines terminated with 0x0d
+      // or replace with " " (using "" creates a problem)
+
+      // API type data
+      // TODO Complete API packet parsing implementation and DRY/Encap etc.
+      var s = " ";
+      var bufAsString = " ";
+      for ( var i = 0; i < data.length; i++ ) {
+        s = "0x" + ('0' + (data[i] & 0xFF).toString(16)).slice(-2);
+        bufAsString += " " + s;
+        if ( s == '0x7e' ) {
+          socket.emit('data', "<br>API Packet start rcvd: Flush to screen and reset the prior API Packet hex and ASCII keepers: <br>");
+          socket.emit('data', "apiPacketString: " + apiPacketString + "<br>");
+          socket.emit('data', "apiStringTrans:  " + apiStringTrans + "<br>Done flushes.<br>");
+          apiPacketString = s;
+          apiStringTrans = '----';
+        } else {
+          apiPacketString += " " + s;
+          if ( parseInt(s) > 32 && parseInt(s) < 127 ) {
+            apiStringTrans += " " + "   " + String.fromCharCode(parseInt(s));
           } else {
-            apiPacketString += " " + s;
-            if ( parseInt(s) > 32 && parseInt(s) < 127 ) {
-              apiStringTrans += " " + "   " + String.fromCharCode(parseInt(s));
-            } else {
-              apiStringTrans += " " + s;
-            }
+            apiStringTrans += " " + s;
           }
         }
-        socket.emit('data', "<br>Current bufAsString: " + bufAsString + "<br>");
+      }
+      socket.emit('data', "<br>Current bufAsString: " + bufAsString + "<br>");
+      socket.emit('data', "<br>Current apiPacketString: " + apiPacketString + "<br>");
 
-        stringBuffer += data.toString();              // Accumulate between data received until buffer is dumped, etc.
+      stringBuffer += data.toString();              // Accumulate between data received until buffer is dumped, etc.
 
-        // Alert: Until complete API is implemented, we'll be one buffer short so request one extra frame etc.
+      // Alert: Until complete API is implemented, we'll be one buffer short so request one extra frame etc.
 
-        console.log("port data received:");
-        console.log(data);
-    });
+      console.log("port data received:");
+      console.log(data);
+  });
 
+  // Do you miss ajax and post?
+  // Or are socket(s) awesome here?
+  socket.on('client_set_destination_mac_id', function(macid) {
+      console.log("Server socket received client_set_destination_mac_id of " + macid);
+      Gateway.set_destination_radio_mac_id(socket, macid);
+  });
 
+  socket.on('client_set_digital_io', function(macid, pin, state) {
+      console.log("Server socket received client_set_digital_io of "
+          + macid + " for pin " + pin
+          + " to state " + state);
+      Gateway.set_digital_io(socket, macid, pin, state);
+  });
 
-    // Do you miss ajax and post?
-    // Or are socket(s) awesome here?
-    socket.on('client_set_destination_mac_id', function(macid) {
-        console.log("Server socket received client_set_destination_mac_id of " + macid);
-        Gateway.set_destination_radio_mac_id(socket, macid);
-    });
+  socket.on('client_get_digital_io', function(macid, pin, state) {
+      console.log("Server socket received client_get_digital_io of "
+          + macid + " for pin " + pin
+          + " to state " + state);
+      Gateway.get_digital_io(socket, macid, pin);
+  });
 
-    socket.on('client_set_digital_io', function(macid, pin, state) {
-        console.log("Server socket received client_set_digital_io of "
-            + macid + " for pin " + pin
-            + " to state " + state);
-        Gateway.set_digital_io(socket, macid, pin, state);
-    });
+  socket.on('client_get_gateway_radio_serial_link_destination_mac_id_info', function() {
+      console.log('Server socket received client_get_gateway_radio_serial_link_destination_mac_id_info');
+      Gateway.get_gateway_xbee_dest_mac(socket);
+  });
 
-    socket.on('client_get_digital_io', function(macid, pin, state) {
-        console.log("Server socket received client_get_digital_io of "
-            + macid + " for pin " + pin
-            + " to state " + state);
-        Gateway.get_digital_io(socket, macid, pin);
-    });
+  socket.on('client_get_gateway_radio_mac_id_info', function() {
+      console.log('Server socket received client_get_gateway_radio_mac_id_info');
+      Gateway.get_gateway_xbee_mac(socket);
+  });
 
-    socket.on('client_get_gateway_radio_serial_link_destination_mac_id_info', function() {
-        console.log('Server socket received client_get_gateway_radio_serial_link_destination_mac_id_info');
-        Gateway.get_gateway_xbee_dest_mac(socket);
-    });
+  socket.on('client_get_remote_radio_dios', function(macid) {
+      console.log('Server socket received client_get_remote_radio_dios');
+      Gateway.get_remote_radio_dios(socket, macid);
+  });
 
-    socket.on('client_get_gateway_radio_mac_id_info', function() {
-        console.log('Server socket received client_get_gateway_radio_mac_id_info');
-        Gateway.get_gateway_xbee_mac(socket);
-    });
+  socket.on('client_do_node_discover', function() {
+      console.log('Server socket received client_do_node_discover');
+      Gateway.do_node_discover(socket);
+  });
 
-    socket.on('client_get_remote_radio_dios', function(macid) {
-        console.log('Server socket received client_get_remote_radio_dios');
-        Gateway.get_remote_radio_dios(socket, macid);
-    });
+  socket.on('client_get_gateway_radio_dios', function() {
+      console.log('Server socket received client_get_gateway_radio_dios');
+      Gateway.get_gateway_radio_dios(socket);
+  });
 
-    socket.on('client_do_node_discover', function() {
-        console.log('Server socket received client_do_node_discover');
-        Gateway.do_node_discover(socket);
-    });
+  socket.on('client_get_db_radio_mac_ids', function() {
+      console.log('Server socket received client_get_db_radio_mac_ids');
+      Gateway.get_db_radio_mac_ids(socket);
+  });
 
-    socket.on('client_get_gateway_radio_dios', function() {
-        console.log('Server socket received client_get_gateway_radio_dios');
-        Gateway.get_gateway_radio_dios(socket);
-    });
+  socket.on('client_pop_db_radio_mac_ids', function() {
+      console.log('Server socket received client_pop_db_radio_mac_ids');
+      Gateway.pop_db_radio_mac_ids(socket);
+  });
 
-    socket.on('client_get_db_radio_mac_ids', function() {
-        console.log('Server socket received client_get_db_radio_mac_ids');
-        Gateway.get_db_radio_mac_ids(socket);
-    });
+  socket.on('client_set_digital_io_with_timed_reset', function( macid, pin, timedstate, durationMinutes) {
+      console.log('Server socket receive client_set_digital_io_with_timed_reset');
+      Gateway.set_digital_io_with_timed_reset(socket, macid, pin, timedstate, durationMinutes);
+  });
+  
+  socket.on('client_set_digital_io_with_timed_reset_known_state_values', function( macid, pin, timedstate, durationMinutes, offstate) {
+      console.log('Server socket receive client_set_digital_io_with_timed_reset_known_state_values');
+      console.log('durationMinutes: ' + durationMinutes);
+      if ( !durationMinutes || !parseInt(durationMinutes) || parseInt(durationMinutes) < 0 || parseInt(durationMinutes) > 2880 ) { // TODO max config minutes watering length
+        console.log('durationMinutes: missing or incorrect parameter');
+      }
+      //console.log(JSON.stringify(arguments));
+      Gateway.set_digital_io_with_timed_reset_known_state_values(socket, macid, pin, timedstate, durationMinutes, offstate);
+  });
 
-    socket.on('client_pop_db_radio_mac_ids', function() {
-        console.log('Server socket received client_pop_db_radio_mac_ids');
-        Gateway.pop_db_radio_mac_ids(socket);
-    });
+  // Not implemented
+  socket.on('client_store_nd_radios_in_db', function(radios) {
+      console.log('Server socket received client_store_nd_radios_in_db');
+      Gateway.store_nd_radios_in_db(socket, radios);
+  });
+  
+  socket.on('client_load_radio_data', function(macId) {
+    console.log('Server socket received client_load_radio_data');
+    Gateway.load_radio_data(socket, macId);
+  });
 
-    socket.on('client_set_digital_io_with_timed_reset', function( macid, pin, timedstate, durationMinutes) {
-        console.log('Server socket receive client_set_digital_io_with_timed_reset');
-        Gateway.set_digital_io_with_timed_reset(socket, macid, pin, timedstate, durationMinutes);
-    });
-    
-    socket.on('client_set_digital_io_with_timed_reset_known_state_values', function( macid, pin, timedstate, durationMinutes, offstate) {
-        console.log('Server socket receive client_set_digital_io_with_timed_reset_known_state_values');
-        console.log('durationMinutes: ' + durationMinutes);
-        if ( !durationMinutes || !parseInt(durationMinutes) || parseInt(durationMinutes) < 0 || parseInt(durationMinutes) > 2880 ) { // TODO max config minutes watering length
-			console.log('durationMinutes: missing or incorrect parameter');
-		}
-        //console.log(JSON.stringify(arguments));
-        Gateway.set_digital_io_with_timed_reset_known_state_values(socket, macid, pin, timedstate, durationMinutes, offstate);
-    });
+  // Call any further on-connect startup functions now
 
-    // Not implemented
-    socket.on('client_store_nd_radios_in_db', function(radios) {
-        console.log('Server socket received client_store_nd_radios_in_db');
-        Gateway.store_nd_radios_in_db(socket, radios);
-    });
-    
-    socket.on('client_load_radio_data', function(macId) {
-		console.log('Server socket received client_load_radio_data');
-		Gateway.load_radio_data(socket, macId);
-	});
+  // Populate select with stored MACs
+  Gateway.pop_db_radio_mac_ids(socket);
 
-    // Call any further on-connect startup functions now
-
-    // Populate select with stored MACs
-    Gateway.pop_db_radio_mac_ids(socket);
-
-
-}
+} // end of: GatewaySchema.statics.setup_serial_port_and_socket_messaging
 
 
 
@@ -302,7 +368,7 @@ GatewaySchema.statics.dump_string_buffer = function ( socket ) {
 
 
 
-GatewaySchema.statics.setup_serial_port = function (port_name) {
+GatewaySchema.statics.setup_serial_port = function (port_name, port) {
 
     console.log("Got into setup_serial_port");
 
@@ -313,7 +379,7 @@ GatewaySchema.statics.setup_serial_port = function (port_name) {
             baudRate: 9600,
             autoOpen: false
         });
-    }
+    //} // chasing down multiple port calls on refresh - no diff
 
     // TODO error handling (if open undefined etc)
     port.on('open', function() {
@@ -325,6 +391,7 @@ GatewaySchema.statics.setup_serial_port = function (port_name) {
         console.log('SerialPort port Error: ', err.message + err.stack);
     });
 
+    } // chasing down multiple port calls on refresh - no diff
 
     return port;
 
@@ -340,23 +407,33 @@ GatewaySchema.statics.setup_serial_port = function (port_name) {
 // [# Samples] + [Digital Mask] + [Analog Mask] + [Digital IO Data] + [Analog Data (if applicable)]
 
 
-GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin ) {
+GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, sp ) {
+
+  // TODO WARN IF NO MACID !
 
     var app = require('../app');
-    var io = app.io;
-    var socket_id = app.locals.gateway_socket_id;
+    //var io = app.io;
+    //var socket_id = app.locals.gateway_socket_id;
     var this_socket = socket; // io.sockets.connected[socket_id];
 
+    //var port = app.locals.sport; // or do we pass it in when the event is created - add fcn param above?
+
     console.log("");
+
+    if ( !pin ) {
+      console.log("gatewayMod: get_digitial_io: pin is not set, subbing 0....");
+      pin = 0;
+    }
+
     console.log("gatewayMod: get_digital_io called - get pin sate for pin: " + pin + " at MAC ID: " + macid);
 
-    port.flush();
+    //port.flush();
 
-    await XBee.EnterCommandMode(port, this_socket);
+    await XBee.EnterCommandMode(sp, this_socket); // was (port, ....)
 
-    await XBee.IssueAtCommand(port, this_socket, "atap1");
+    await XBee.IssueAtCommand(sp, this_socket, "atap1"); // was (port, ...)
 
-    await XBee.ExitCommandMode(port, this_socket);
+    await XBee.ExitCommandMode(sp, this_socket); // was (port, ...)
 
     const START_BYTE = 0x7E;
     const FRAME_TYPE = 0x17;
@@ -391,12 +468,23 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin ) {
 
     this_socket.emit('data', ">(Gateway.get_digital_io (1000ms)<br>");
     console.log("Get IO packet to send, stringified:" + JSON.stringify(bytes.slice(0, 11+16))); // set: 11+17
-    port.write(bytes.slice(0, 11+16));
+    apiPacketString = "";
+    sp.flush();
+    sp.write(bytes.slice(0, 11+16));
+    //this_socket.emit('writeserialdata', bytes.slice(0, 11+16));
     await sleep(1000);
+
+    // Somewhere in here if there was successful transmission, then the port.on data 
+    // function was called - and apiPacketString was built up ... 
+    // however probably a different instance / context - so current issue:
+    // apiPacketString is huge and grows hugelyier
+    // so, above, let's try purging apiPacketStringprior to the write?
+
 
     await this_socket.emit('data', "<br><br><b>Finished:</b> Get Digital IO via API for: " + macid + " " + pin + "<br><br>");
 
     // Now, to test, we could assume we have a reply to this request and parse it from the API packet accumulator Buffer
+    var apiPacketString = app.locals.apiPacketString;
     var ss = apiPacketString.replace(/\s/g,"").replace(/0x/g,"").toUpperCase();
     this_socket.emit('data', "\r apiPacketString: ");
     this_socket.emit('data', apiPacketString);
@@ -427,7 +515,9 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin ) {
     await this_socket.emit('data', "<br><br><b>Get Digital IO via API Value in Reply: " + replyPinStateBySearch + "</b><br><br>");
     this_socket.emit('getDioPinState', replyPinStateBySearch);
 
-    port.flush();
+    //port.flush(); // TODO put this again at top level?
+    
+    // TODO need to have UI indicator with passing along failed / non-int / undefined state
 
     console.log("gatewayMod: get_digital_io finished.");
     console.log("");
@@ -646,7 +736,13 @@ GatewaySchema.statics.pop_db_radio_mac_ids = async function (socket) {
       });
       sel += "</select>";
       socket.emit('macidssel', sel);
-      var sel = '<select name=\"macIdsSelSel\" id=\"macIdsSelSel\" onchange=\"macIdsSelFcn()\" onclick=\"macIdsSelFcn()\">';
+      
+      // TODO - on client: cookie for last selected mac id? or somehow store and re-select?
+      // Look to socketwork maybe to place that?
+      // Now - try to populate the watering data automatically from the selected mac id?
+      // added in socketwork js in the macidssel event handler
+
+      var sel = '<select name=\"macIdsSelSel\" id=\"macIdsSelSel\" onchange=\"macIdsSelFcn()\" onclick=\"macIdsSelFcn()\">'; // TODO Huh?
     } else {
       console.log("No radios to populate the select");
     }
@@ -708,13 +804,13 @@ GatewaySchema.statics.onSocketConnect = async function (socket) {
 
 
 
-GatewaySchema.statics.initialize_gateway_serial = function () {
+GatewaySchema.statics.initialize_gateway_serial = function (port) {
 
     console.log("Got into GatewaySchema.statics.initialize_gateway_serial");
 
     var _port_list = Gateway.serial_port_list_sync();
     var _first_port = Gateway.serial_port_to_use(_port_list);
-    var _port = Gateway.setup_serial_port(_first_port);
+    var _port = Gateway.setup_serial_port(_first_port, port);
     return { list:_port_list, first_port:_first_port, port:_port};
 
 };

@@ -4,6 +4,8 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
+
+
 // Q1 2019
 // Is body parser still needed for our versions of express, etc.?
 const bodyParser = require('body-parser'); // https://codeburst.io/writing-a-crud-app-with-node-js-and-mongodb-e0827cbbdafb
@@ -11,6 +13,26 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 var app = express();
+
+// https://blog.sylo.space/use-global-variable-for-socket-io/
+// 2023 Q2
+// < Single global >
+// var SerialPort = require('serialport');
+// //var port_name;
+// var port;
+// var apiPacketString;
+// var apiStringTrans;
+// var stringBuffer = "";
+// app.locals.port = port;
+// app.set('SerialPort',SerialPort);
+// app.set('port',port);
+// app.set('apiPacketString',apiPacketString);
+// app.set('apiStringTrans',apiStringTrans);
+// app.set('stringBuffer',stringBuffer);
+// </ Single global? >
+
+
+
 
 // This should be before routes (?)
 app.use(bodyParser.json());
@@ -39,6 +61,8 @@ var logRouter = require('./routes/logRou');
 var socket_io = require('socket.io');
 var io = socket_io();
 app.io = io;
+
+
 
 
 //var app = require('express')();

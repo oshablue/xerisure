@@ -26,11 +26,13 @@ XBee.prototype.data = {}
 
 
 XBee.EnterCommandMode = async function(port, clientSocket) {
+//XBee.EnterCommandMode = async function(clientSocket) {
 
     clientSocket.emit(
         defaultClientSocketChannel,
         "<br>>+++ [Enter command mode] (2000ms)<br>");
     port.write("+++");
+    //clientSocket.emit('writeserialdata', "+++");
     await sleep(2000);
     // TODO instead of wait, loop until read OK\r\n
     // otherwise max wait time and exit lack of success
@@ -39,21 +41,26 @@ XBee.EnterCommandMode = async function(port, clientSocket) {
 
 
 XBee.ExitCommandMode = async function(port, clientSocket) {
+//XBee.ExitCommandMode = async function(clientSocket) {
+
 
     clientSocket.emit(
         defaultClientSocketChannel,
         "<br>>atcn [Exit command mode] (100ms)<br>");
     port.write("atcn\r\n");
+    //clientSocket.emit('writeserialdata', "atcn\r\n");
 
 }
 
 
 XBee.IssueAtCommand = async function(port, clientSocket, cmd, timeoutms = 100) {
+//XBee.IssueAtCommand = async function(clientSocket, cmd, timeoutms = 100) {
 
     clientSocket.emit(
         defaultClientSocketChannel,
         "<br>>" + cmd + " (" + timeoutms.toString() + "ms)<br>");
     port.write(cmd + "\r\n");
+    //clientSocket.emit('writeserialdata', cmd + "\r\n");
     await sleep(timeoutms);
 
 }

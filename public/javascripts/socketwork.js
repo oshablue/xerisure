@@ -172,7 +172,7 @@ window.onload = function () {
     $('#storedWateringCircuitsDiv').text("Content loaded from socketwork.js on window.load()");
     
 
-}
+} // end of window.onload
 
 
 //
@@ -212,9 +212,24 @@ socket.on('macids', function(data) {
   macIds.innerHTML = data;
   $(macIds).show();
 });
-socket.on('macidssel', function(data) {
+socket.on('macidssel', function(data) {   // macIdsSel is a div containing macIdsSelSel the actual select html tag set
   macIdsSel.innerHTML = data;
   $(macIdsSel).show();
+  // TODO:
+  // Now also we could trigger a click or event to load the watering data as well
+  // e.g. on page load 
+  // or possibly cookie or somehow stored last selected macid and go back to it
+  // $(macIdsSel).click(); // nope
+  // This would be like the gateway.pug macIdsSelFcn()
+  // To stick to the domain of just this code file:
+  var sel = $('select[name="macIdsSelSel"]');
+  var inp = $('input[name="setDigitalIoByApiMacIdInputTxt"]');
+  var newMac = sel.val();
+  inp.val(newMac);
+  //testFunction(newMac); // adding to populate eg watering circuits stored
+  //console.log(socket);
+  socket.emit('client_load_radio_data', newMac);
+  // Yeah this function works enough to populate on page load
 });
 socket.on('macIdsFromDb', function(data) {
   divMacIdsFromDb.innerHTML = data;
