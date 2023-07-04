@@ -273,14 +273,14 @@ io.of('/gateway').on('connection', async function (socket) {
       console.log("Server socket received client_set_digital_io of "
           + macid + " for pin " + pin
           + " to state " + state);
-      Gateway.set_digital_io(socket, macid, pin, state);
+      Gateway.set_digital_io(socket, macid, pin, state, xbeeAPI);
   });
 
   socket.on('client_get_digital_io', function(macid, pin, state) {
       console.log("Server socket received client_get_digital_io of "
           + macid + " for pin " + pin
           + " to state " + state);
-      Gateway.get_digital_io(socket, macid, pin, xbeeAPI); // sp);
+      Gateway.get_digital_io(socket, macid, pin, xbeeAPI);
   });
 
   socket.on('client_get_gateway_radio_serial_link_destination_mac_id_info', function() {
@@ -327,10 +327,11 @@ io.of('/gateway').on('connection', async function (socket) {
       console.log('Server socket receive client_set_digital_io_with_timed_reset_known_state_values');
       console.log('durationMinutes: ' + durationMinutes);
       if ( !durationMinutes || !parseInt(durationMinutes) || parseInt(durationMinutes) < 0 || parseInt(durationMinutes) > 2880 ) { // TODO max config minutes watering length
-        console.log('durationMinutes: missing or incorrect parameter');
+        console.log('durationMinutes: missing or incorrect parameter - returning');
+        socket.emit('data', "<br>> Returning without doing anyway - duration parameter missing");
+        return;
       }
-      //console.log(JSON.stringify(arguments));
-      Gateway.set_digital_io_with_timed_reset_known_state_values(socket, macid, pin, timedstate, durationMinutes, offstate);
+      Gateway.set_digital_io_with_timed_reset_known_state_values(socket, macid, pin, timedstate, durationMinutes, offstate, xbeeAPI);
   });
 
   // Not implemented

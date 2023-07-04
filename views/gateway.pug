@@ -1,24 +1,20 @@
 extends layout
 
 block scripts
-    script(src='https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js')
+    //- script(src='https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js')
+    script(src='/javascripts/socket.io-2.1.1.js')
     script(src='/javascripts/socketwork.js')
 
 block title
-  h1= siteName + ' :: Gateway'
-  p Welcome to the #{siteName} Gateway Page
-  p This page shows information about the gateway that controls communications to all of the sensor monitoring nodes.  You might have one or many gateways.  At this time, this is a single gateway that control your local sensor network.
-
+  h2= siteName + ' :: Gateway'
+  p(class='small text-muted') Water Agua L'Eau 
 
 block content
-
-
   #setDigitalIoByApi(class='card pl-2')
-    h3 Set Digital IO Pin State by API Packet
-    p This tells the state to place the destination radio's pin
+    h4 Water Controls by DIO Pin State
 
     div.form-group
-      p
+      p.small
         | Available Radio MAC IDs from Node Discover or Database which
         | defaults to loading the database values on socket connect:
         div#macIdsSel
@@ -27,6 +23,16 @@ block content
 
       label(for='setDigitalIoByApiMacId') Radio MAC ID:
       input#setDigitalIoByApiMacIdInputTxt.form-control(type='text', placeholder='0013A200 40nnmmpp' name='setDigitalIoByApiMacIdInputTxt')
+
+      div(class='card mt-3')
+        div(class='card-body')
+          h4(class='card-title')
+            Stored Watering Circuits
+          p(class='card-text')
+            |Water for [mins] 
+            input#waterCycleDurationMinutesTxt(type='text', placeholder='45', class='m-0') 
+            div#storedWateringCircuitsHeaderDiv
+            div#storedWateringCircuitsDiv
 
       div(class='card p-2')
         div(class='card-body')
@@ -53,17 +59,6 @@ block content
 
               button#reconnectSocketBtn.btn.btn-primary
                 | Reconnect Socket
-                
-            div(class='card mt-3')
-              div(class='card-body')
-                h4(class='card-title')
-                  Stored Watering Circuits
-                p(class='card-text')
-                  |Water for 
-                  input#waterCycleDurationMinutesTxt(type='text', placeholder='45', class='m-0')
-                  | (minutes)
-                  div#storedWateringCircuitsHeaderDiv
-                  div#storedWateringCircuitsDiv
 
             div(class='card mt-3')
               div(class='card-body')

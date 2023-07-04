@@ -454,11 +454,10 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbee
 
   //port.flush();
 
+  // Keeping for posterity:
   /*
   await XBee.EnterCommandMode(sp, this_socket); // was (port, ....)
-
   await XBee.IssueAtCommand(sp, this_socket, "atap1"); // was (port, ...)
-
   await XBee.ExitCommandMode(sp, this_socket); // was (port, ...)
 
   const START_BYTE = 0x7E;  // 
@@ -472,7 +471,6 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbee
   bytes[4] = (0x01);
   for ( var i = 0; i < macid.length/2; i++ ) {
       bytes[5+i] = (parseInt("0x" + macid.substr(i*2,2))); // to_i(16)
-
   }
   bytes[5+8] = (0xFF);
   bytes[6+8] = (0xFE);
@@ -491,7 +489,7 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbee
   // get: 11+8 => 10+8
   bytes[10+8]= (checksum);
   console.log("Checksum (Get IO): " + checksum);
-  */
+  */ // Kept for posterity
 
   var frameId = xbeeAPI.nextFrameId();
   var frame_obj = {
@@ -502,39 +500,29 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbee
     commandParameter: []     // None means query
   }
 
-
   this_socket.emit('data', "<br>> sent xb builder write of frame data");
   this_socket.emit('data', `<br>> as json: " ${JSON.stringify(frame_obj)}`);
 
-  //xbeeAPI.builder.write(frame_obj);
-
   const msgType = `xbee-data-frameType${xbee_api.constants.FRAME_TYPE.REMOTE_COMMAND_RESPONSE.toString(16)}`;
   const res = await asyncWriteRead(msgType, frame_obj, xbeeAPI);
-  // Gateway.asyncWriteRead(msgType, frame_obj, xbeeAPI)
-  //  .then( res => {
-
-    
-
-  
-  // .catch (e => {
-  //   console.log(e);
-  // });
 
   console.log(`res of asyncWriteRead: ${JSON.stringify(res)} (if it's nothing, we return)`);
 
   if ( !res ) {
-    return;
+    console.log(`!res ... returning`);
+    return null;
   }
 
 
-  // TODO could verify that command matches the command issued as well
-  // and etc.
+  // TODO
+  // Error handling
+  // Verify command as well for certainty as system scales
 
 
-  // res is a frame
   var pinState; 
   try {
-    pinState = parseInt(res.commandData[0]); // commandData { type: Buffer, data: [4]}
+    // res is an xbee-api frame
+    pinState = parseInt(res.commandData[0]); // eg commandData { type: Buffer, data: [4]}
   } catch (e) {
     console.log(e);
   }
@@ -588,10 +576,7 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbee
   console.log("ss: " + ss + " sa: " + sa + " apiLen: " + apiLen + " macid: " + macidReply + " replyPinStateBySearch: " + replyPinStateBySearch);
   */
 
-
-  //await this_socket.emit('data', "<br><br><b>Get Digital IO via API Value in Reply: " + replyPinStateBySearch + "</b><br><br>");
   await this_socket.emit('data', "<br>> Get Digital IO via API Value in Reply: " + pinState + "</b><br><br>");
-  //this_socket.emit('getDioPinState', replyPinStateBySearch);
   await this_socket.emit('getDioPinState', pinState);
   
 
@@ -600,13 +585,7 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbee
   console.log("gatewayMod: get_digital_io finished.");
   console.log("");
 
-  //return replyPinStateBySearch;
   return pinState;
-
-// })
-// .catch ( e => {
-//   return null;
-// });
 
 };
 
@@ -649,133 +628,132 @@ GatewaySchema.statics.set_digital_io_with_timed_reset = async function ( socket,
 
 
 
-GatewaySchema.statics.set_digital_io_with_timed_reset_known_state_values = async function ( socket, macid, pin, state, durMins, offstate ) {
+GatewaySchema.statics.set_digital_io_with_timed_reset_known_state_values = async function ( 
+  socket, macid, pin, state, durMins, offstate, xbeeAPI ) {
+
+  // This is called like from when water Run button is clicked
 
   console.log("");
-  console.log("gatewayMod: set_digital_io_with_timed_reset_known_state_values started ... duration is: " + durMins + "(Will add a standard base delay of 5 seconds)");
+  var msg = `gatewayMod: set_digital_io_with_timed_reset_known_state_values started for duration: ${durMins}`;
+  console.log(msg);
+  socket.emit('data', `<br>> ${msg}`);
 
-  var timeMs = (durMins * 60. * 1000.) + (5 * 1000.);
+  var timeMs = (durMins * 60. * 1000.) + (5 * 1000.); // add 5 seconds as overhead padding for comms
 
   var maxtries = 4;
   var i = 0;
   var currentPinState = -1;
-  //while ( i++ < maxtries) {
-    //currentPinState = await Gateway.get_digital_io( socket, macid, pin );
-    //console.log("Gateway model: set_digital_io_with_timed_reset: get_digital_io: value: " + currentPinState);
-    //if ( currentPinState < 10 && currentPinState > -1 ) {
-      //break;
-    //}
-  //}
-  //if ( i >= maxtries ) {
-    //console.log("Couldn't get a reasonable current pin state (not between 0 and 9) maxtries: " + i + " with last currentPinState: " + currentPinState);
-    //console.log("Maybe try checking the MAC ID selection and the Pin Number Settings as well as power to devices.");
-    //return -1; //
-  //}
 
-  await Gateway.set_digital_io( socket, macid, pin, state);
+  await Gateway.set_digital_io( socket, macid, pin, state, xbeeAPI);
 
+  // TODO - in case lost between boots / process restarts etc - 
+  // actually these things need to get posted to a dB queue or better 
+  // to make sure ON-ness gets OFF-d as fallback and/or etc !
+  msg = `Will reset pin ${pin} to ${offstate} (off) in ${durMins} minutes.`;
   setTimeout( function() {
-    console.log("Will reset pin " + pin + " to " + offstate + " in " + durMins + " minutes (plus base 5-second delay).");
-    Gateway.set_digital_io( socket, macid, pin, offstate );
+    var msg = `Will now reset pin ${pin} to ${offstate} after having waited ${durMins} minutes.`;
+    socket.emit('data', `<br>> ${msg}`);
+    console.log(msg);
+    Gateway.set_digital_io( socket, macid, pin, offstate, xbeeAPI );
   }, timeMs );
 
-}
+} // end of: set_digital_io_with_timed_reset_known_state_values
 
 
 
 
 
 
-GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, state ) {
+GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, state, xbeeAPI ) {
 
-    var app = require('../app');
-    var io = app.io;
-    var socket_id = app.locals.gateway_socket_id;
-    var this_socket = socket; // io.sockets.connected[socket_id];
+  var app = require('../app');
+  var this_socket = socket;
 
-    state = '' + state;
+  state = '' + state;
 
-    console.log("");
-    console.log("gatewayMod: set_digital_io called - set to: " + state + " for pin " + pin + " at MAC ID: " + macid);
-    port.flush();
+  console.log("");
+  console.log("gatewayMod: set_digital_io called - set to: " + state + " for pin " + pin + " at MAC ID: " + macid);
+
+
+  var frameId = xbeeAPI.nextFrameId();
+  var frame_obj = {
+    type: xbee_api.constants.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
+    id: frameId,
+    destination64: macid,
+    command: "D"+pin.toString(),
+    commandParameter: [state]     // None means query
+  }
+
+  this_socket.emit('data', "<br>> sent xb builder write of frame data");
+  this_socket.emit('data', `<br>> as json: " ${JSON.stringify(frame_obj)}`);
+
+  const msgType = `xbee-data-frameType${xbee_api.constants.FRAME_TYPE.REMOTE_COMMAND_RESPONSE.toString(16)}`;
+  const res = await asyncWriteRead(msgType, frame_obj, xbeeAPI);
+
+  console.log(`res of asyncWriteRead: ${JSON.stringify(res)} (if it's nothing, we return)`);
+
+  if ( !res ) {
+    console.log(`!res ... returning`);
+    return;
+  }
+
+  await this_socket.emit('data', "<br>><b>Finished:</b> Set Digital IO via API for: " + macid + " " + pin + " " + state);
+  
+  var logThisXaction = true;
+
+  // Check the work now by reading back the pin state
+  console.log("gatewayMod: set_digital_io: right before calling get_digital_io for confirmation...");
+  const retframe = await Gateway.get_digital_io(this_socket, macid, pin, xbeeAPI);
+  if ( !retframe ) {
+    console.log(`getting the pin state returned nothing - will not log this`);
+    logThisXaction = false;
+  }
+  var verifiedPinState;
+  try {
+    // res is an xbee-api frame
+    verifiedPinState = parseInt(resframe.commandData[0]); // eg commandData { type: Buffer, data: [4]}
+    state = parseInt(state);
+  } catch (e) {
+    console.log(e);
+  }
+  console.log(`verifiedPinState: ${verifiedPinState}`);
+  if ( verifiedPinState !== state ) {
+    console.log(`verifiedPinState does not match state requested in the set_digital_io, no log entry`);
+    logThisXaction = false;
+  }
     
-    // Testing 
-    // Log entry here (?) - should we log attempted vs results separately? (yes probably for most granular)
-    //Log.createDioEntryByMacAndPin(macid, pin, state);
-    //return;
-    // </Testing>
-
-    await XBee.EnterCommandMode(port, this_socket);
-
-    await XBee.IssueAtCommand(port, this_socket, "atap1");
-
-    await XBee.ExitCommandMode(port, this_socket);
-
-    port.flush();
-
-    const START_BYTE = 0x7E;
-    const FRAME_TYPE = 0x17;
-
-    var bytes = new Uint8Array(100);
-    bytes[0] = (START_BYTE);
-    bytes[1] = (0x00);
-    bytes[2] = (0x10);
-    bytes[3] = (FRAME_TYPE);
-    bytes[4] = (0x01);
-    for ( var i = 0; i < macid.length/2; i++ ) {
-        bytes[5+i] = (parseInt("0x" + macid.substr(i*2,2))); // to_i(16)
-
-    }
-    bytes[5+8] = (0xFF);
-    bytes[6+8] = (0xFE);
-    bytes[7+8] = (0x02);
-    bytes[8+8] = ("D".charCodeAt(0));
-    bytes[9+8] = (pin.charCodeAt(0));
-    bytes[10+8] = (parseInt("0x" + state.substr(0,2)));
-
-    var sum = 0x0000;
-    for ( var j = 3; j < bytes.length; j++ ) {
-        sum += bytes[j];
-    }
-    sum &= 0x00FF;
-    var checksum = 0xFF - sum;
-
-    bytes[11+8]= (checksum);
-    console.log("Checksum (Set IO): " + checksum);
-
-    this_socket.emit('data', ">(Gateway.set_digital_io (1000ms)<br>");
-    console.log(JSON.stringify(bytes.slice(0, 11+17)));
-    port.write(bytes.slice(0, 11+17));
-    await sleep(1000);
-
-    await this_socket.emit('data', "<br><br><b>Finished:</b> Set Digital IO via API for: " + macid + " " + pin + " " + state + "<br><br>");
-
-    // Check the work now by reading back the pin state
-    console.log("gatewayMod: set_digital_io: right before calling get_digital_io for confirmation...");
-    await Gateway.get_digital_io(this_socket, macid, pin);
-    
-    // Log entry here (?) - should we log attempted vs results separately? (yes probably for most granular)
-    // TODO add description that includes the result of the get_digital_io too? etc.
+  // Log entry here (?) - should we log attempted vs results separately? (yes probably for most granular)
+  // TODO add description that includes the result of the get_digital_io too? etc.
+  // At present - returning if the get fails above - so no log in that case ... (?)
+  if ( logThisXaction ) {
     Log.createDioEntryByMacAndPin(macid, pin, state); 
+  } else {
+    console.log(`skipping logging this set_digital_io xaction`);
+    this_socket.emit('data',"<br>> Skipping log of the set digital io event");
+  }
 
-    // Notify
-    console.log("gatewayMod: set_digital_io: right before calling set up set_digital_io email notification...");
-    mailOptions.text = "Xerisure message: gatewayModel: set_digital_io for: MAC ID: " + macid + " Pin (base 0): " + pin + ", Setting to state: " + state + " [End Message]";
-    await transporter.sendMail(mailOptions, function(error, info){
-      if (error) {
-        console.log(error);
-        // Can use info.MessageId etc.
-        this_socket.emit('data', "<br><br><b>Error on sending mail notification from gatewayModel for set_digital_io" + "<br><br>");
-      } else {
-        console.log('Email sent: ' + info.response);
-        this_socket.emit('data', "<br><br><b>Finished sending mail notification from gatewayModel for set_digital_io" + "<br><br>");
-      }
-    });
+  console.log("gatewayMod: set_digital_io: right before calling set up set_digital_io email notification...");
+  mailOptions.text = "Xerisure message: gatewayModel: set_digital_io for: MAC ID: " + macid + " Pin (base 0): " + pin + ", Setting to state: " + state + " [End Message]";
+  await transporter.sendMail(mailOptions, function(error, info){
+    if (error) {
+      console.log(error);
+      // Can use info.MessageId etc.
+      this_socket.emit('data', "<br>> Error on sending mail notification from gatewayModel for set_digital_io");
+    } else {
+      console.log('Email sent: ' + info.response);
+      this_socket.emit('data', "<br>> <b>Finished sending mail notification from gatewayModel for set_digital_io");
+    }
+  });
 
-    console.log("gatewayMod: finished set_digital_io, after email notification.");
-    console.log("");
+  console.log("gatewayMod: finished set_digital_io, after email notification.");
+  console.log("");
 
-};
+}; // end of: set_digitial_io
+
+
+
+
+
 
 
 
@@ -1099,7 +1077,9 @@ GatewaySchema.statics.load_radio_data = async function( socket, macId )  {
   		    for ( let wc of rdat.wateringcircuits ) {
 			  wc = new Wateringcircuit(wc);
 			  formatted += "<tr>"; 
-			  formatted += "<td>" + wc.number + "</td><td>" + wc.name + "</td><td>" + wc.gpionumber + "</td><td>"; // + wc.onstate;
+			  formatted += "<td>" + wc.number + "</td><td>" + wc.name;
+            formatted += `<br><button class="btn btn-primary btn-xs" onclick="socket.emit('client_get_digital_io', '${macId}', '${wc.gpionumber}', '${wc.offstate}');">Get State</button>`;
+        formatted += "</td><td>" + wc.gpionumber + "</td><td>"; // + wc.onstate;
 			  formatted += "<button class=\"btn btn-primary\" onclick=\" socket.emit('client_set_digital_io', \'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.onstate + "\');\">On (" + wc.onstate + ")</button>"; // socket.emit('client_set_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
               formatted += "</td><td>"; // + wc.offstate;
               formatted += "<button class=\"btn btn-primary\" onclick=\" socket.emit('client_set_digital_io', \'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.offstate + "\');\">Off (" + wc.offstate + ")</button>";
