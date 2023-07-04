@@ -119,6 +119,10 @@ sp.on('open', function() {
   console.log('www top level: port.on(open): serial port open ... ');
 });
 
+
+//
+// We now try binding to xbee API...
+/*
 sp.on('data', function(data) {
   //io.of('/gateway').emit('serialdataRx', rdat);
   //console.log('serial data received: ', rdat);
@@ -168,6 +172,58 @@ sp.on('data', function(data) {
   app.locals.apiPacketString = apiPacketString;
 
 });
+*/ // because we now try binding / piping via xbeeAPI
+//
+//
+
+
+
+const backendEvents = require('../lib/utils.js').ServerSideEmitter;
+
+
+// Back to singleton for now - oy.
+// Let's see if we can fire this up
+// and replace our early custom api.
+var xbee_api = require('xbee-api');
+var XBCs = xbee_api.constants;
+
+var xbeeAPI = new xbee_api.XBeeAPI({
+  api_mode: 1
+});
+
+sp.pipe(xbeeAPI.parser);
+xbeeAPI.builder.pipe(sp);
+
+// omit the example sp.on open fcn
+
+xbeeAPI.parser.on( "data", function(frame) {
+
+  console.log(`(RX) www xb parser on data: ${JSON.stringify(frame)}`);
+  console.log(`rxd frame command data: ${JSON.stringify(frame.commandData)}`);
+  var msgType = `xbee-data-frameType${frame.type.toString(16)}`;
+  console.log(msgType);
+  //io.emit(msgType, frame);
+  backendEvents.emit(msgType, frame);
+
+  //io.emit('xbee-data', frame); // if we wanted to process on the client side - but we don't
+  // var data = frame.commandData.data;
+  // for ( var i = 0; i < data.length; i++ ) {
+  //   s = "0x" + ('0' + (data[i] & 0xFF).toString(16)).slice(-2);
+  //   bufAsString += " " + s;
+  // }
+  //console.log(s);
+
+  // Msg q would be great here
+
+  // 
+
+});
+
+
+
+
+
+
 
 sp.on('error', function(err) {
   console.log('SerialPort port Error: ', err.message + err.stack);
@@ -224,7 +280,7 @@ io.of('/gateway').on('connection', async function (socket) {
       console.log("Server socket received client_get_digital_io of "
           + macid + " for pin " + pin
           + " to state " + state);
-      Gateway.get_digital_io(socket, macid, pin, sp);
+      Gateway.get_digital_io(socket, macid, pin, xbeeAPI); // sp);
   });
 
   socket.on('client_get_gateway_radio_serial_link_destination_mac_id_info', function() {
@@ -292,19 +348,3 @@ io.of('/gateway').on('connection', async function (socket) {
   
 
 });
-
-// app.use((req, res, next) => {
-//   //req.gw = req.gw || {};
-//   //req.theApp = app;
-//   req.sp = sp;
-// });
-
-// works
-//app.set('sp', sp);
-
-// var Gateway = require('../models/gatewayMod').Gateway;
-// Gateway.start(io); 
-// start(io) in gatewayMod.js sets event on connection to call 
-// setup_serial_port_and_socket_messaging(io, socket)
-
-

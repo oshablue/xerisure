@@ -9,7 +9,7 @@
 // Our early work before moving to library:
 var XBee = require('./xbeeMod').XBee;
 
-//var xbeeApi = require('xbee-api');
+var xbee_api = require('xbee-api');
 
 
 var Mdbradio = require('./mdbradioMod');
@@ -17,6 +17,9 @@ var Utils = require('../lib/utils');
 var sleep = Utils.sleep;
 var Log = require('./logMod');
 var Wateringcircuit = require('./wateringcircuitMod.js');
+
+const backendEvents = require('../lib/utils.js').ServerSideEmitter;
+
 
 
 var mongoose = require('mongoose');
@@ -407,122 +410,204 @@ GatewaySchema.statics.setup_serial_port = function (port_name, port) {
 // [# Samples] + [Digital Mask] + [Analog Mask] + [Digital IO Data] + [Analog Data (if applicable)]
 
 
-GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, sp ) {
+
+
+// A variation on:
+// medium.com
+// N. Gabisonia: "sing socket.io with async/await to simulate realtime Fetch behavior"
+// Except we're using EventEmitter for backend server events 
+// Maybe there is a better way ... but seems ok so far
+function asyncWriteRead ( returnEventMsgType, outgoingData, xbeeAPI ) {
+  return new Promise(function (resolve, reject) {
+    console.log('asyncWriteRead');
+    xbeeAPI.builder.write(outgoingData);
+    backendEvents.once(returnEventMsgType, result => {
+      console.log(`got backendEvents result ${JSON.stringify(result)}`);
+      resolve(result);
+    });
+    setTimeout(function() {
+      resolve('err: asyncWriteRead timed out');
+    }, 5000);
+  });
+}
+
+
+
+
+
+// xbb = xbeeAPI.builder from top level singleton / instance
+GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbeeAPI) { // sp ) {
 
   // TODO WARN IF NO MACID !
 
-    var app = require('../app');
-    //var io = app.io;
-    //var socket_id = app.locals.gateway_socket_id;
-    var this_socket = socket; // io.sockets.connected[socket_id];
+  var app = require('../app');
+  var this_socket = socket;
 
-    //var port = app.locals.sport; // or do we pass it in when the event is created - add fcn param above?
+  console.log("");
 
-    console.log("");
+  if ( !pin ) {
+    console.log("gatewayMod: get_digitial_io: pin is not set, subbing 0....");
+    pin = 0;
+  }
 
-    if ( !pin ) {
-      console.log("gatewayMod: get_digitial_io: pin is not set, subbing 0....");
-      pin = 0;
-    }
+  console.log("gatewayMod: get_digital_io called - get pin sate for pin: " + pin + " at MAC ID: " + macid);
 
-    console.log("gatewayMod: get_digital_io called - get pin sate for pin: " + pin + " at MAC ID: " + macid);
+  //port.flush();
 
-    //port.flush();
+  /*
+  await XBee.EnterCommandMode(sp, this_socket); // was (port, ....)
 
-    await XBee.EnterCommandMode(sp, this_socket); // was (port, ....)
+  await XBee.IssueAtCommand(sp, this_socket, "atap1"); // was (port, ...)
 
-    await XBee.IssueAtCommand(sp, this_socket, "atap1"); // was (port, ...)
+  await XBee.ExitCommandMode(sp, this_socket); // was (port, ...)
 
-    await XBee.ExitCommandMode(sp, this_socket); // was (port, ...)
+  const START_BYTE = 0x7E;  // 
+  const FRAME_TYPE = 0x17;  // Remote Command Request
 
-    const START_BYTE = 0x7E;
-    const FRAME_TYPE = 0x17;
+  var bytes = new Uint8Array(100);
+  bytes[0] = (START_BYTE);
+  bytes[1] = (0x00);
+  bytes[2] = (0x0F); // for set with state payload byte, we use 0x10
+  bytes[3] = (FRAME_TYPE);
+  bytes[4] = (0x01);
+  for ( var i = 0; i < macid.length/2; i++ ) {
+      bytes[5+i] = (parseInt("0x" + macid.substr(i*2,2))); // to_i(16)
 
-    var bytes = new Uint8Array(100);
-    bytes[0] = (START_BYTE);
-    bytes[1] = (0x00);
-    bytes[2] = (0x0F); // for set with state payload byte, we use 0x10
-    bytes[3] = (FRAME_TYPE);
-    bytes[4] = (0x01);
-    for ( var i = 0; i < macid.length/2; i++ ) {
-        bytes[5+i] = (parseInt("0x" + macid.substr(i*2,2))); // to_i(16)
+  }
+  bytes[5+8] = (0xFF);
+  bytes[6+8] = (0xFE);
+  bytes[7+8] = (0x02);
+  bytes[8+8] = ("D".charCodeAt(0));
+  bytes[9+8] = (pin.charCodeAt(0));
+  //bytes[10+8] = (parseInt("0x" + state.substr(0,2)));
 
-    }
-    bytes[5+8] = (0xFF);
-    bytes[6+8] = (0xFE);
-    bytes[7+8] = (0x02);
-    bytes[8+8] = ("D".charCodeAt(0));
-    bytes[9+8] = (pin.charCodeAt(0));
-    //bytes[10+8] = (parseInt("0x" + state.substr(0,2)));
+  var sum = 0x0000;
+  for ( var j = 3; j < bytes.length; j++ ) {
+      sum += bytes[j];
+  }
+  sum &= 0x00FF;
+  var checksum = 0xFF - sum;
 
-    var sum = 0x0000;
-    for ( var j = 3; j < bytes.length; j++ ) {
-        sum += bytes[j];
-    }
-    sum &= 0x00FF;
-    var checksum = 0xFF - sum;
+  // get: 11+8 => 10+8
+  bytes[10+8]= (checksum);
+  console.log("Checksum (Get IO): " + checksum);
+  */
 
-    // get: 11+8 => 10+8
-    bytes[10+8]= (checksum);
-    console.log("Checksum (Get IO): " + checksum);
-
-    this_socket.emit('data', ">(Gateway.get_digital_io (1000ms)<br>");
-    console.log("Get IO packet to send, stringified:" + JSON.stringify(bytes.slice(0, 11+16))); // set: 11+17
-    apiPacketString = "";
-    sp.flush();
-    sp.write(bytes.slice(0, 11+16));
-    //this_socket.emit('writeserialdata', bytes.slice(0, 11+16));
-    await sleep(1000);
-
-    // Somewhere in here if there was successful transmission, then the port.on data 
-    // function was called - and apiPacketString was built up ... 
-    // however probably a different instance / context - so current issue:
-    // apiPacketString is huge and grows hugelyier
-    // so, above, let's try purging apiPacketStringprior to the write?
+  var frameId = xbeeAPI.nextFrameId();
+  var frame_obj = {
+    type: xbee_api.constants.FRAME_TYPE.REMOTE_AT_COMMAND_REQUEST,
+    id: frameId,
+    destination64: macid,
+    command: "D"+pin.toString(),
+    commandParameter: []     // None means query
+  }
 
 
-    await this_socket.emit('data', "<br><br><b>Finished:</b> Get Digital IO via API for: " + macid + " " + pin + "<br><br>");
+  this_socket.emit('data', "<br>> sent xb builder write of frame data");
+  this_socket.emit('data', `<br>> as json: " ${JSON.stringify(frame_obj)}`);
 
-    // Now, to test, we could assume we have a reply to this request and parse it from the API packet accumulator Buffer
-    var apiPacketString = app.locals.apiPacketString;
-    var ss = apiPacketString.replace(/\s/g,"").replace(/0x/g,"").toUpperCase();
-    this_socket.emit('data', "\r apiPacketString: ");
-    this_socket.emit('data', apiPacketString);
-    this_socket.emit('data', "\r with spaces and 0x removed: ");
-    this_socket.emit('data', ss);
-    var sa = apiPacketString.split(" ");
-    var len = sa.length;
-    var apiLen = parseInt(sa[2]);
-    if ( apiLen == (sa.length - 4) ) console.log("API length byte matches the payload length of the apiPacketString buffer: " + apiLen);
-    var macidReply = sa.slice(5,5+8).join("").replace(/0x/g,"");
-    if ( macidReply === macid ) console.log("API reply MAC ID matches the command MAC ID");
+  //xbeeAPI.builder.write(frame_obj);
 
-    // For now for the DIO command, grab the 4th data payload reply byte as the pin state
-    var replyPinState = sa[18];
-    var toMatch = macid.toUpperCase() + "FFFE" + "D".charCodeAt(0).toString(16) + pin.charCodeAt(0).toString(16);
-    var rx = new RegExp(toMatch);
-    var mat = ss.match(rx);
-    var replyPinStateBySearch;
-    if ( mat ) {
-      replyPinStateBySearch = ss.slice(mat.index + toMatch.length).match(/.{1,2}/g) || "";
-      if ( replyPinStateBySearch ) {
-        replyPinStateBySearch = replyPinStateBySearch[1] || "";
-        replyPinStateBySearch = parseInt(replyPinStateBySearch);
-      } // 2nd byte of the 3 remaining bytes - the last byte is the checksum
-    }
-    console.log("ss: " + ss + " sa: " + sa + " apiLen: " + apiLen + " macid: " + macidReply + " replyPinStateBySearch: " + replyPinStateBySearch);
+  const msgType = `xbee-data-frameType${xbee_api.constants.FRAME_TYPE.REMOTE_COMMAND_RESPONSE.toString(16)}`;
+  const res = await asyncWriteRead(msgType, frame_obj, xbeeAPI);
+  // Gateway.asyncWriteRead(msgType, frame_obj, xbeeAPI)
+  //  .then( res => {
 
-    await this_socket.emit('data', "<br><br><b>Get Digital IO via API Value in Reply: " + replyPinStateBySearch + "</b><br><br>");
-    this_socket.emit('getDioPinState', replyPinStateBySearch);
-
-    //port.flush(); // TODO put this again at top level?
     
-    // TODO need to have UI indicator with passing along failed / non-int / undefined state
 
-    console.log("gatewayMod: get_digital_io finished.");
-    console.log("");
+  
+  // .catch (e => {
+  //   console.log(e);
+  // });
 
-    return replyPinStateBySearch;
+  console.log(`res of asyncWriteRead: ${JSON.stringify(res)} (if it's nothing, we return)`);
+
+  if ( !res ) {
+    return;
+  }
+
+
+  // TODO could verify that command matches the command issued as well
+  // and etc.
+
+
+  // res is a frame
+  var pinState; 
+  try {
+    pinState = parseInt(res.commandData[0]); // commandData { type: Buffer, data: [4]}
+  } catch (e) {
+    console.log(e);
+  }
+  console.log(`pinState: ${pinState}`);
+
+  //this_socket.emit('data', ">(Gateway.get_digital_io (1000ms)");
+  //console.log("Get IO packet to send, stringified:" + JSON.stringify(bytes.slice(0, 11+16))); // set: 11+17
+  //apiPacketString = "";
+  //sp.flush();
+  //sp.write(bytes.slice(0, 11+16));
+  //this_socket.emit('writeserialdata', bytes.slice(0, 11+16));
+  //await sleep(1000);
+
+  // Somewhere in here if there was successful transmission, then the port.on data 
+  // function was called - and apiPacketString was built up ... 
+  // however probably a different instance / context - so current issue:
+  // apiPacketString is huge and grows hugelyier
+  // so, above, let's try purging apiPacketStringprior to the write?
+
+
+  await this_socket.emit('data', "<br>> Finished:</b> Get Digital IO via API for: " + macid + " pin: " + pin);
+
+  /*
+  // Now, to test, we could assume we have a reply to this request and parse it from the API packet accumulator Buffer
+  var apiPacketString = app.locals.apiPacketString;
+  var ss = apiPacketString.replace(/\s/g,"").replace(/0x/g,"").toUpperCase();
+  this_socket.emit('data', "\r apiPacketString: ");
+  this_socket.emit('data', apiPacketString);
+  this_socket.emit('data', "\r with spaces and 0x removed: ");
+  this_socket.emit('data', ss);
+  var sa = apiPacketString.split(" ");
+  var len = sa.length;
+  var apiLen = parseInt(sa[2]);
+  if ( apiLen == (sa.length - 4) ) console.log("API length byte matches the payload length of the apiPacketString buffer: " + apiLen);
+  var macidReply = sa.slice(5,5+8).join("").replace(/0x/g,"");
+  if ( macidReply === macid ) console.log("API reply MAC ID matches the command MAC ID");
+
+  // For now for the DIO command, grab the 4th data payload reply byte as the pin state
+  var replyPinState = sa[18];
+  var toMatch = macid.toUpperCase() + "FFFE" + "D".charCodeAt(0).toString(16) + pin.charCodeAt(0).toString(16);
+  var rx = new RegExp(toMatch);
+  var mat = ss.match(rx);
+  var replyPinStateBySearch;
+  if ( mat ) {
+    replyPinStateBySearch = ss.slice(mat.index + toMatch.length).match(/.{1,2}/g) || "";
+    if ( replyPinStateBySearch ) {
+      replyPinStateBySearch = replyPinStateBySearch[1] || "";
+      replyPinStateBySearch = parseInt(replyPinStateBySearch);
+    } // 2nd byte of the 3 remaining bytes - the last byte is the checksum
+  }
+  console.log("ss: " + ss + " sa: " + sa + " apiLen: " + apiLen + " macid: " + macidReply + " replyPinStateBySearch: " + replyPinStateBySearch);
+  */
+
+
+  //await this_socket.emit('data', "<br><br><b>Get Digital IO via API Value in Reply: " + replyPinStateBySearch + "</b><br><br>");
+  await this_socket.emit('data', "<br>> Get Digital IO via API Value in Reply: " + pinState + "</b><br><br>");
+  //this_socket.emit('getDioPinState', replyPinStateBySearch);
+  await this_socket.emit('getDioPinState', pinState);
+  
+
+  // TODO need to have UI indicator with passing along failed / non-int / undefined state
+
+  console.log("gatewayMod: get_digital_io finished.");
+  console.log("");
+
+  //return replyPinStateBySearch;
+  return pinState;
+
+// })
+// .catch ( e => {
+//   return null;
+// });
+
 };
 
 
