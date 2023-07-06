@@ -331,6 +331,7 @@ io.of('/gateway').on('connection', async function (socket) {
         socket.emit('data', "<br>> Returning without doing anyway - duration parameter missing");
         return;
       }
+      socket.emit('data', `<br><br>> Run Water Circ: Turn pin On, wait ${durationMinutes} minute(s), and then turn Off`);
       Gateway.set_digital_io_with_timed_reset_known_state_values(socket, macid, pin, timedstate, durationMinutes, offstate, xbeeAPI);
   });
 

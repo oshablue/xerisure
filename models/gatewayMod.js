@@ -543,7 +543,7 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbee
   // so, above, let's try purging apiPacketStringprior to the write?
 
 
-  await this_socket.emit('data', "<br>> Finished:</b> Get Digital IO via API for: " + macid + " pin: " + pin);
+  await this_socket.emit('data', "<br>> <b>Finished:</b> Get Digital IO via API for: " + macid + " pin: " + pin);
 
   /*
   // Now, to test, we could assume we have a reply to this request and parse it from the API packet accumulator Buffer
@@ -576,9 +576,14 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbee
   console.log("ss: " + ss + " sa: " + sa + " apiLen: " + apiLen + " macid: " + macidReply + " replyPinStateBySearch: " + replyPinStateBySearch);
   */
 
-  await this_socket.emit('data', "<br>> Get Digital IO via API Value in Reply: " + pinState + "</b><br><br>");
-  await this_socket.emit('getDioPinState', pinState);
-  
+  await this_socket.emit('data', "<br>> Get Digital IO via API Value in Reply: " + pinState + "</b>");
+  await this_socket.emit('getDioPinStateResult', pinState);
+
+  // Now we give feedback to water circuit specific area near or on GPIO clicked too 
+  this_socket.emit(
+    'getDioPinStateResultIndicator', 
+    { pin: pin, pinState: pinState }
+  );
 
   // TODO need to have UI indicator with passing along failed / non-int / undefined state
 
@@ -640,10 +645,7 @@ GatewaySchema.statics.set_digital_io_with_timed_reset_known_state_values = async
 
   var timeMs = (durMins * 60. * 1000.) + (5 * 1000.); // add 5 seconds as overhead padding for comms
 
-  var maxtries = 4;
-  var i = 0;
-  var currentPinState = -1;
-
+  // TODO return success or failure and proceed accordingly 
   await Gateway.set_digital_io( socket, macid, pin, state, xbeeAPI);
 
   // TODO - in case lost between boots / process restarts etc - 
@@ -697,29 +699,39 @@ GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, stat
     return;
   }
 
-  await this_socket.emit('data', "<br>><b>Finished:</b> Set Digital IO via API for: " + macid + " " + pin + " " + state);
+  await this_socket.emit('data', "<br>> <b>Finished:</b> Set Digital IO via API for: " + macid + " " + pin + " " + state);
   
   var logThisXaction = true;
 
   // Check the work now by reading back the pin state
   console.log("gatewayMod: set_digital_io: right before calling get_digital_io for confirmation...");
-  const retframe = await Gateway.get_digital_io(this_socket, macid, pin, xbeeAPI);
-  if ( !retframe ) {
-    console.log(`getting the pin state returned nothing - will not log this`);
+  const pinAsRead = await Gateway.get_digital_io(this_socket, macid, pin, xbeeAPI);
+  
+  if ( !pinAsRead ) {
+    var m = `getting the pin state returned nothing (pinAsRead is nothing) - will not log this`;
+    console.log(m);
+    socket.emit('data', `<br>> ${m}`);
     logThisXaction = false;
   }
+  
   var verifiedPinState;
   try {
     // res is an xbee-api frame
-    verifiedPinState = parseInt(resframe.commandData[0]); // eg commandData { type: Buffer, data: [4]}
+    verifiedPinState = parseInt(pinAsRead); // eg commandData { type: Buffer, data: [4]}
     state = parseInt(state);
   } catch (e) {
     console.log(e);
   }
-  console.log(`verifiedPinState: ${verifiedPinState}`);
+  console.log(`verifiedPinState (via get_digital_io): ${verifiedPinState}`);
   if ( verifiedPinState !== state ) {
-    console.log(`verifiedPinState does not match state requested in the set_digital_io, no log entry`);
+    var m = `verifiedPinState does not match state requested in the set_digital_io, no log entry`;
+    console.log(m);
+    socket.emit('data', `<br>> ${m}`);
     logThisXaction = false;
+  } else {
+    var m = `Good. verifiedPinState from get_digital_io matches the requested state to be set by set_digital_io.`;
+    console.log(m);
+    socket.emit('data', `<br>> ${m}`);
   }
     
   // Log entry here (?) - should we log attempted vs results separately? (yes probably for most granular)

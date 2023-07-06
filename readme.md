@@ -42,3 +42,6 @@ See also
   - xbmq-js
   - node-red-contrib-xbee (node)
 
+### Backups for keeping local ###
+
+`tar -czvf xerisure-2023-07-Jul-04.tar.gz --exclude=./xerisure/node_modules ./xerisure`
