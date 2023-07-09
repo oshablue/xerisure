@@ -1,6 +1,6 @@
 {
   "name": "xerisure",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "scripts": {
     "start": "node ./bin/www",
@@ -19,7 +19,7 @@
     "nodemailer": "^6.3.0",
     "pm2": "^3.4.0",
     "pug": "^2.0.3",
-    "serialport": "^6.2.0",
+    "serialport": "^8",
     "socket.io": "^2.1.1",
     "xbee-api": "^0.6.0"
   },

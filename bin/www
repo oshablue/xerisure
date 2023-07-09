@@ -105,19 +105,70 @@ function onListening() {
 
 var Gateway = require('../models/gatewayMod').Gateway;
 
-var apiPacketString;
-var apiStringTrans;
-var stringBuffer = "";
+var utils = require('../lib/utils.js');
 
 var SerialPort = require('serialport');
-var sp = new SerialPort( '/dev/ttyUSB0', {
-  baudRate: 9600,
-  autoOpen: false
+
+// TODO pull in the code to list and grab the first /dev/ttyUSB0 in our case
+//
+// See readme - 8.x version in use now with nodejs engine 8.11.3
+var portName = utils.getFirstTtyUsbDeviceSync();
+// Test post-sleep recovery by setting this name to something that doesn't exist 
+// like /dev/ttyUSB9 or whatever
+//var sp; // = new SerialPort('/dev/ttyUSB999');
+portName = '/dev/ttyUSB999';
+
+var sp = new SerialPort( 
+  portName,
+  {
+    baudRate: 9600,
+    autoOpen: false 
+  }
+);
+  
+sp.on('open', function() {
+  var m = `www top level: port.on(open): serial port open ... portName: ${portName}`;
+  pushLog(m);
 });
 
-sp.on('open', function() {
-  console.log('www top level: port.on(open): serial port open ... ');
+
+sp.on('error', function(err) {
+  var m = `SerialPort port Error: ' ${err.message} ${err.stack}`;
+  pushLog(m);
+
 });
+
+sp.open(); // even with await - this takes some time - so checking open status here even after await doesn't do what we want
+
+
+// Now call it on app launch
+//setupAndOpenSerialPort(portName);
+
+
+
+// var sp = new SerialPort( 
+//   '/dev/ttyUSB1', //portName,
+//   {
+//     baudRate: 9600,
+//     autoOpen: false 
+//   }
+// );
+
+// sp.on('open', function() {
+//   var m = `www top level: port.on(open): serial port open ... portName: ${portName}`;
+//   console.log(m);
+//   io.emit('data', `<br>> [www top level] ${m}`);
+// });
+
+
+// sp.on('error', function(err) {
+//   var m = `SerialPort port Error: ' ${err.message} ${err.stack}`;
+//   console.log(m);
+//   io.emit('data', `<br>> ${m}`)
+
+// });
+
+// sp.open();
 
 
 //
@@ -181,6 +232,29 @@ sp.on('data', function(data) {
 const backendEvents = require('../lib/utils.js').ServerSideEmitter;
 
 
+// TEST NOTE
+// HOWTO TEST
+// Launch the app aka 
+// pm2 restart www && pm2 logs www
+// watch for expected launch and some expected pin get functionality
+// then ctrl-C to exit pm2 logs
+// and on the command line:
+// sudo usbreset 0403:6015
+// which will reset the ttyUSB* device 
+// pm2 logs www (again if you want to monitor)
+// Now click again something to get pin status - this should trigger the serial port error 
+// which should trigger this event and a re-open of the serial port after the timeout on 
+// asyncWriteRead in gateway
+
+backendEvents.on('portReopen', function() {
+  if ( sp ) {
+    if ( sp.isOpen ) {
+      sp.close();
+    }
+  }
+  reopenSerialPort();
+});
+
 // Back to singleton for now - oy.
 // Let's see if we can fire this up
 // and replace our early custom api.
@@ -223,13 +297,70 @@ xbeeAPI.parser.on( "data", function(frame) {
 
 
 
+/**
+ * \brief   thisLilLogOfMine
+ * @param m 
+ */
+let pushLog = function (m, socket) {
+  console.log(m);
+  if ( socket ) {
+    socket.emit('data', `<br>> ${m}`);
+  } else {
+    // Interestingly, yes, the namespace works but without it, the message does not get 
+    // through to the gateway path (ie io.emit() doesn't do it)
+    io.of('/gateway').emit('data', `<br>> ${m}`);
+  }
+}
 
 
-sp.on('error', function(err) {
-  console.log('SerialPort port Error: ', err.message + err.stack);
-});
 
-sp.open();
+
+
+var reopenSerialPort = async function() {
+  portName = utils.getFirstTtyUsbDeviceSync();
+  //await setupAndOpenSerialPort(portName);
+
+  sp = new SerialPort(
+    portName,
+    {
+      baudRate: 9600,     // TODO extract to env  
+      autoOpen: false     // TODO maybe extract to env or const top level
+    }
+  );
+
+  // Right so yeah - don't want to repeat self here - but ... couldn't yet 
+  // get a non-repeat yourself method to work .... working on it eventually 
+  // in the meantime ...
+
+  sp.on('open', function() {
+    var m = `www top level: port.on(open): serial port open ... portName: ${portName}`;
+    pushLog(m);
+  });
+
+  sp.on('error', function(err) {
+    var m = `SerialPort port Error: ' ${err.message} ${err.stack}`;
+    pushLog(m);
+  });
+
+  await sp.open();
+  sp.pipe(xbeeAPI.parser);
+  xbeeAPI.builder.pipe(sp);
+
+  // This actually takes too long to open and so will not happen here without some delay
+  setTimeout( function() {
+    if ( sp.isOpen ) {
+      var m = `sp re-opened with path ${sp.path} and xbeeAPI <=> sp pipes re-established.`;
+      pushLog(m); // without socket parameters should give io.emit
+    } else {
+      var m = `Problem: after trying to re-open serial port with update first path ${portName}, sp is still not open.`;
+      pushLog(m);
+    }
+  }, 2000); // 2 seconds should be long enough 
+
+}
+
+
+
 
 var Gateway = require('../models/gatewayMod').Gateway;
 
@@ -242,9 +373,33 @@ io.of('/gateway').on('connection', async function (socket) {
   console.log(' %s sockets connected', io.engine.clientsCount);
   socket.emit('connected', true);
 
+  // TODO send serial port connected status to the client and 
+  // client should show in some useful UI
+
+  if ( sp.readable ) {
+    console.log(`sp.readable: ${sp.readable}`);       // 
+    console.log(`serial port is open: ${sp.isOpen}`);
+  }
+
+  if ( !sp ) {
+    var m = `sp is nothing - that's a problem.`;
+    pushLog(m, socket);
+  }
+
+  // TODO - do we want to check how many clients connected and 
+  // try the re-open conditionally?
+  if ( !sp.isOpen ) {
+    var m = `sp is not open - trying to re-open, using first matching ttyUSB dev path...`;
+    pushLog(m, socket);
+    await reopenSerialPort();
+    console.log(`${sp.path}`);
+  }
+
   socket.on('disconnect', function () {
-      console.log("Server got socket disconnect for: " + socket.id);
-      console.log(' %s sockets connected', io.engine.clientsCount);
+      //console.log("Server got socket disconnect for: " + socket.id);
+      //console.log(' %s sockets connected', io.engine.clientsCount);
+      var m = `Server got socket disconnect for: ${socket.id}. ${io.engine.clientsCount} sockets connected.`;
+      pushLog(m, socket);
   });
 
   // socket.on('writeserialdata', function(wdat) {

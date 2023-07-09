@@ -426,7 +426,10 @@ function asyncWriteRead ( returnEventMsgType, outgoingData, xbeeAPI ) {
       resolve(result);
     });
     setTimeout(function() {
-      resolve('err: asyncWriteRead timed out');
+      // TODO emit msg to UI or at calling level
+      // backendEvents.emit('portReopen');
+      //resolve('err: asyncWriteRead timed out'));
+      reject(new Error(`asyncWriteRead timed out after 5 seconds.`));
     }, 5000);
   });
 }
@@ -504,7 +507,15 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbee
   this_socket.emit('data', `<br>> as json: " ${JSON.stringify(frame_obj)}`);
 
   const msgType = `xbee-data-frameType${xbee_api.constants.FRAME_TYPE.REMOTE_COMMAND_RESPONSE.toString(16)}`;
-  const res = await asyncWriteRead(msgType, frame_obj, xbeeAPI);
+  var res;
+  try {
+    res = await asyncWriteRead(msgType, frame_obj, xbeeAPI);
+  } catch (e) {
+    console.log(e);
+    await this_socket.emit('data', `<br>> ${e}`);
+    backendEvents.emit('portReopen');
+    return -1;
+  }
 
   console.log(`res of asyncWriteRead: ${JSON.stringify(res)} (if it's nothing, we return)`);
 
@@ -512,6 +523,7 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbee
     console.log(`!res ... returning`);
     return null;
   }
+
 
 
   // TODO
@@ -527,6 +539,14 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbee
     console.log(e);
   }
   console.log(`pinState: ${pinState}`);
+
+  // Example current log output from when xbee comms not working:
+  // asyncWriteRead
+  // 0|www  | res of asyncWriteRead: "err: asyncWriteRead timed out" (if it's nothing, we return)
+  // 0|www  | TypeError: Cannot read property '0' of undefined
+  // 0|www  |     at Function.GatewaySchema.statics.get_digital_io (/home/nodeuser/xerisure/models/gatewayMod.js:525:40)
+  // 0|www  |     at <anonymous>
+  // 0|www  | pinState: undefined
 
   //this_socket.emit('data', ">(Gateway.get_digital_io (1000ms)");
   //console.log("Get IO packet to send, stringified:" + JSON.stringify(bytes.slice(0, 11+16))); // set: 11+17
