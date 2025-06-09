@@ -1,7 +1,7 @@
 //const mongoose = require('mongoose');
 //const Schema = mongoose.Schema;
 
-//const Wateringcircuit = require('./wateringcircuitMod.js');
+//const WateringCircuit = require('./WateringCircuit');
 
 
 
@@ -63,7 +63,7 @@ const Radio = sequelize.define('radio', {
 
 });
 
-
+//Radio.hasMany(WateringCircuit);
 
 
 // Synchronize all models

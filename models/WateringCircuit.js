@@ -47,10 +47,14 @@ const WateringCircuit = sequelize.define('wateringcircuit', {
       if ( this.logevents.length == 1 ) {
         return this.logevents[0].eventType + " " + this.logevents[0].createdAt + " <b>Only 1 log entry!</b>";
       }
-      //this.logevents.sort((this.createdAt) => )
-      var recentLe = this.logevents[1]; //[0];
+      this.logevents.sort((a,b) => {
+        const dateA = new Date(a.createdAt);
+        const dateB = new Date(b.createdAt);
+        return dateB - dateA; // This order will put the later date first
+      });
+      var recentLe = this.logevents[0]; //[0];
       var recTimeS = new dayjs (recentLe.createdAt.getTime());
-      var previousLe = this.logevents[0]; //[1];
+      var previousLe = this.logevents[1]; //[1];
       var prevTimeS = new dayjs (previousLe.createdAt.getTime());
       var wateringDur = recentLe.createdAt.getTime() - previousLe.createdAt.getTime(); // ms
       var res = "";
@@ -84,7 +88,7 @@ const WateringCircuit = sequelize.define('wateringcircuit', {
 // Radio.hasMany(WateringCirc) where foreign key is in wateringcirc
 // Does it work to define that here?
 Radio.hasMany(WateringCircuit);
-//WateringCircuit.hasMany(LogEvent);
+WateringCircuit.belongsTo(Radio);
 
 
 

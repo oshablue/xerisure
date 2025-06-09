@@ -662,6 +662,13 @@ Gateway.update_last_active = async function(socket, macid, pin) {
     }],
   });
 
+  // CONFUSINGLY
+  // When just a single result is returned, the order of the createdAt is reversed 
+  // as presented here versus get all watering circuits in Gateway.load_radio_data
+  // where still using createdAt DESC works to get the most recent 
+  // 2 createdAt logevents - but they end up coming out in the array sorted in reverse order
+  // 
+
   console.log(`rdat is: ${JSON.stringify(rdat, null, 2)}`);
   rdat = rdat[0];
   let wc = rdat.wateringcircuits[0];
@@ -1204,7 +1211,6 @@ Gateway.load_radio_data = async function( socket, macId )  {
           separate: true,
           order: [[ 'createdAt', 'DESC' ]], // separate needed to do this here
           limit: 2 // separate needed for this
-          //order: [[ 'createdAt', 'DESC']] // this doesn't work here - but see below:
         }] // already included at the water circuit level?
     }],
     order: [
@@ -1212,7 +1218,16 @@ Gateway.load_radio_data = async function( socket, macId )  {
       // Would be needed next below if not using separate = true above
       // [{ model: WateringCircuit},
       //   { model: LogEvent }, 'createdAt', 'DESC'],
+      //[sequelize.col('wateringcircuits.logevents.createdAt', 'DESC')]
     ],
+
+    // Note with the above necessary limit separate to limit to 2 the most recent
+    // the order of output wateringcircuits is annoyingly in reverse of DESC (newest first)
+    // and is actually oldest first of the 2 annoyingly 
+    // So, need to update the last active at string to sort these manually
+    // See also the update last active function as well
+
+
     // limit: [
     //   [{ model: WateringCircuit},
     //     { model: LogEvent }, 2]
