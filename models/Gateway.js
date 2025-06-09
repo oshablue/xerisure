@@ -629,6 +629,69 @@ Gateway.get_digital_io = async function ( socket, macid, pin, xbeeAPI) { // sp )
 
 };
 
+
+
+
+
+
+
+
+
+
+Gateway.update_last_active = async function(socket, macid, pin) {
+
+  // Re-load the query to get the latest events
+  let rdat = await Radio.findAll({
+    where: {
+      macid: macid
+    },
+    include: [{
+      model: WateringCircuit,
+      where: { 
+        gpionumber: pin
+      },
+      include: [{
+        model: LogEvent,
+        separate: true,
+        order: [['createdAt', 'DESC']], // separate needed to do this here
+        limit: 2 // separate needed for this
+      }],
+      order: [
+        [{ model: WateringCircuit }, 'number', 'ASC'],
+      ],
+    }],
+  });
+
+  console.log(`rdat is: ${JSON.stringify(rdat, null, 2)}`);
+  rdat = rdat[0];
+  let wc = rdat.wateringcircuits[0];
+  
+  var lastActiveStmt = "";
+  if (rdat && wc) {
+    lastActiveStmt += wc.get('lastActiveString');
+  } else {
+    lastActiveStmt += "Problem with get radio or wc"
+  }
+
+
+  // Now we give feedback to water circuit specific area near or on GPIO clicked too 
+  socket.emit(
+    'updateDioPinLastActiveCell', 
+    { pin: pin, lastActiveStmt: lastActiveStmt }
+  );
+
+}
+
+
+
+
+
+
+
+
+
+
+
 // was statics
 Gateway.set_digital_io_with_timed_reset = async function ( socket, macid, pin, state, durMins ) {
 
@@ -775,9 +838,17 @@ Gateway.set_digital_io = async function ( socket, macid, pin, state, xbeeAPI ) {
   if ( logThisXaction ) {
     LogEvent.createDioEntryByMacAndPin(macid, pin, state)
     .then(() => {
-      socket.emit('client_load_radio_data', macid); // for update log event and time since last click
-      console.log(`just finished socket emit client load radio data post createDioEntryByMacAndPin`.red);
-    });
+      //Gateway.load_radio_data(socket, macid); // for update log event and time since last click 
+      Gateway.update_last_active(socket, macid, pin);
+      // TODO sadly this kills the highlighting of the state that shows after the set
+      console.log(`just finished update_last_active data post createDioEntryByMacAndPin`.blue);
+
+    })
+    // .then(() => {
+    //   Gateway.get_digital_io(socket, macid, pin);
+    //   console.log(`just finished re-get of pin state`.blue);
+    // });
+    ;
   } else {
     console.log(`skipping logging this set_digital_io xaction`);
     this_socket.emit('data',"<br>> Skipping log of the set digital io event");
@@ -1130,14 +1201,23 @@ Gateway.load_radio_data = async function( socket, macId )  {
         model: WateringCircuit, 
         include: [{ 
           model: LogEvent,
+          separate: true,
+          order: [[ 'createdAt', 'DESC' ]], // separate needed to do this here
+          limit: 2 // separate needed for this
           //order: [[ 'createdAt', 'DESC']] // this doesn't work here - but see below:
         }] // already included at the water circuit level?
     }],
     order: [
       [{ model: WateringCircuit}, 'number', 'ASC'],
-      [{ model: WateringCircuit},
-        { model: LogEvent }, 'createdAt', 'DESC']
-  ]
+      // Would be needed next below if not using separate = true above
+      // [{ model: WateringCircuit},
+      //   { model: LogEvent }, 'createdAt', 'DESC'],
+    ],
+    // limit: [
+    //   [{ model: WateringCircuit},
+    //     { model: LogEvent }, 2]
+    //]
+
     // .populate({
     //   path: 'wateringcircuits', 
     //   populate: { path: 'logEvents' }

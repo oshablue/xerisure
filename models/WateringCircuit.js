@@ -48,9 +48,9 @@ const WateringCircuit = sequelize.define('wateringcircuit', {
         return this.logevents[0].eventType + " " + this.logevents[0].createdAt + " <b>Only 1 log entry!</b>";
       }
       //this.logevents.sort((this.createdAt) => )
-      var recentLe = this.logevents[0];
+      var recentLe = this.logevents[1]; //[0];
       var recTimeS = new dayjs (recentLe.createdAt.getTime());
-      var previousLe = this.logevents[1];
+      var previousLe = this.logevents[0]; //[1];
       var prevTimeS = new dayjs (previousLe.createdAt.getTime());
       var wateringDur = recentLe.createdAt.getTime() - previousLe.createdAt.getTime(); // ms
       var res = "";

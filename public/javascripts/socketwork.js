@@ -270,7 +270,7 @@ socket.on('getDioPinStateResultIndicator', function(data) {
       if ( $(s).is('span') ) {
         s.text(data.pinState);
       } else {
-        $(theTdToUpdate).append(`<span id="sCurVal">${data.pinState}</span>`);
+        $(theTdToUpdate).append(`<span id="sCurVal" class="pl-3">${data.pinState}</span>`);
       }
       setTimeout(function(){
         $(theTdToUpdate).css('background-color','white');
@@ -281,4 +281,40 @@ socket.on('getDioPinStateResultIndicator', function(data) {
 });
 socket.on('radiodata', function(data) {
 	$('#storedWateringCircuitsDiv').html(data);
+});
+socket.on('updateDioPinLastActiveCell', function(data) {
+  var div = $();
+  
+  // $('#storedWateringCircuitsDiv > table').find('td').filter(function() { return $(this).text() == data.pin; }).parent('tr') or .closest("tr")
+  // $('#storedWateringCircuitsDiv > table').find(`tr:contains("${data.pin}")`).length
+
+  let table = $('#storedWateringCircuitsDiv > table');
+  var indexOfLastActiveColumn = $(table).find(`tr:eq(0)`).find(`th:contains("LastActive")`).index();
+  var indexOfGpioColumn = $(table).find(`tr:eq(0)`).find(`th:contains("GPIO")`).index();
+
+  // TODO swap to 0 compare and return but leave error messages
+  var theTd;
+  if ( indexOfGpioColumn > -1 ) {
+    theTd = $(table).find(`td`).filter( function() { 
+      return $(this).text() == data.pin && $(this).index() == indexOfGpioColumn 
+    }); //.parent('tr').text()
+  }
+  var theTdToUpdate;
+  if ( $(theTd).is('td') ) {
+    theTdToUpdate = $(theTd).parent('tr').find('td').eq(indexOfLastActiveColumn);
+    if ( $(theTdToUpdate).is('td') ) {
+      $(theTdToUpdate).css('background-color', 'green');
+      $(theTdToUpdate).html(`${data.lastActiveStmt}`);
+      // var s = $(theTdToUpdate).find('span#sCurVal');
+      // if ( $(s).is('span') ) {
+      //   s.text(data.pinState);
+      // } else {
+      //   $(theTdToUpdate).append(`<span id="sCurVal" class="pl-3">${data.lastActiveStmt}</span>`);
+      // }
+      setTimeout(function(){
+        $(theTdToUpdate).css('background-color','white');
+      }, 4000);
+    }
+  }
+
 });

@@ -11,6 +11,21 @@ with nodes etc., currently xbee style radios
 #mongoose
 
 
+### TODO Biggies
+
+Deployment / Public Repo:
+
+- Extract / purge like dB credentials or just include as examples
+
+
+Code:
+
+- Prune log events
+- Automatic watering scheduling
+- Haha of course implement the feedback from sensors (need to install the physical HW!)
+
+
+
 
 ### Dev / Deploy / Versions ###
 
