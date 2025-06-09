@@ -7,28 +7,41 @@
 // https://stackoverflow.com/questions/9230932/file-structure-of-mongoose-nodejs-project
 
 // Our early work before moving to library:
-var XBee = require('./xbeeMod').XBee;
+var XBee = require('./xbeeMod.js').XBee;
 
 var xbee_api = require('xbee-api');
 
 
-var Mdbradio = require('./mdbradioMod');
-var Utils = require('../lib/utils');
+var Utils = require('../lib/utils.js');
 var sleep = Utils.sleep;
-var Log = require('./logMod');
-var Wateringcircuit = require('./wateringcircuitMod.js');
+
+
+var Radio = require('./Radio');
+var LogEvent = require('./LogEvent');
+var WateringCircuit = require('./WateringCircuit');
 
 const backendEvents = require('../lib/utils.js').ServerSideEmitter;
 
 
+const {sequelize} = require('../db.js');
+const {DataTypes} = require('sequelize');
 
-var mongoose = require('mongoose');
-var Schema = mongoose.Schema;
-var GatewaySchema = new Schema({
+// TODO-25Q2
+//var mongoose = require('mongoose');
+//var Schema = mongoose.Schema;
 
-  name 			: String,
 
+// var Gateway = new Schema({
+
+//   name 			: String,
+
+// });
+
+const Gateway = sequelize.define( 'gateway', {
+  name: DataTypes.STRING,
 });
+
+
 
 //var app = require('../app');
 
@@ -78,8 +91,8 @@ var mailOptions = {
 
 
 
-
-GatewaySchema.statics.start = function(io){ //, sport) {
+//Gateway.statics.start = function(io){ //, sport) {
+Gateway.start = function(io){ //, sport) {
   io.of('/gateway').on('connection', async function(socket) { //, sport) {
     Gateway.setup_serial_port_and_socket_messaging(io, socket); //, sport);
     // nope that doesn't make repeat port.on('data')s go away
@@ -89,8 +102,8 @@ GatewaySchema.statics.start = function(io){ //, sport) {
   });
 }
 
-
-GatewaySchema.statics.setup_serial_port_and_socket_messaging = async function(io, socket) { //, port) {
+//Gateway.statics.setup_serial_port_and_socket_messaging = async function(io, socket) { //, port) {
+Gateway.setup_serial_port_and_socket_messaging = async function(io, socket) { //, port) {
 
   //port = app.locals.sport;
 
@@ -315,7 +328,7 @@ GatewaySchema.statics.setup_serial_port_and_socket_messaging = async function(io
   // Populate select with stored MACs
   Gateway.pop_db_radio_mac_ids(socket);
 
-} // end of: GatewaySchema.statics.setup_serial_port_and_socket_messaging
+} // end of: Gateway.statics.setup_serial_port_and_socket_messaging
 
 
 
@@ -327,7 +340,8 @@ GatewaySchema.statics.setup_serial_port_and_socket_messaging = async function(io
 
 /* Bad boys and girls! No sync! */
 // Use .methods for instance functions
-GatewaySchema.statics.serial_port_list_sync = function () {
+// was statics
+Gateway.serial_port_list_sync = function () {
 
     const execSync = require('child_process').execSync;
     code = execSync('ls /dev/ttyUSB*');
@@ -338,8 +352,8 @@ GatewaySchema.statics.serial_port_list_sync = function () {
 
 
 
-
-GatewaySchema.statics.serial_port_to_use = function (list_in) {
+// was statics
+Gateway.serial_port_to_use = function (list_in) {
 
     list_in = "" + list_in;
     var first_one = list_in.split("\n")[0].replace(/\r?\n|\r/,"");
@@ -348,8 +362,8 @@ GatewaySchema.statics.serial_port_to_use = function (list_in) {
 };
 
 
-
-GatewaySchema.statics.emit_delayed_socket_message = async function ( socket, channel, data, delay_ms ) {
+// was statics
+Gateway.emit_delayed_socket_message = async function ( socket, channel, data, delay_ms ) {
 
     await sleep(delay_ms);
     socket.emit(channel, data);
@@ -359,8 +373,8 @@ GatewaySchema.statics.emit_delayed_socket_message = async function ( socket, cha
 
 
 
-
-GatewaySchema.statics.dump_string_buffer = function ( socket ) {
+// was statics
+Gateway.dump_string_buffer = function ( socket ) {
 
     socket.emit('data', "<br><br>String Buffer Dump: <br>");
     socket.emit('data', stringBuffer);
@@ -370,8 +384,8 @@ GatewaySchema.statics.dump_string_buffer = function ( socket ) {
 
 
 
-
-GatewaySchema.statics.setup_serial_port = function (port_name, port) {
+// was statics
+Gateway.setup_serial_port = function (port_name, port) {
 
     console.log("Got into setup_serial_port");
 
@@ -429,8 +443,8 @@ function asyncWriteRead ( returnEventMsgType, outgoingData, xbeeAPI ) {
       // TODO emit msg to UI or at calling level
       // backendEvents.emit('portReopen');
       //resolve('err: asyncWriteRead timed out'));
-      reject(new Error(`asyncWriteRead timed out after 5 seconds.`));
-    }, 5000);
+      reject(new Error(`asyncWriteRead timed out after 10 seconds (was 5).`));
+    }, 10000); // 4-28-25 update to 10 from 5 // Sometimes for the far away radio it seems to take longer than 5 sec esp if lots of WiFi interf etc
   });
 }
 
@@ -439,11 +453,12 @@ function asyncWriteRead ( returnEventMsgType, outgoingData, xbeeAPI ) {
 
 
 // xbb = xbeeAPI.builder from top level singleton / instance
-GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbeeAPI) { // sp ) {
+// was statics
+Gateway.get_digital_io = async function ( socket, macid, pin, xbeeAPI) { // sp ) {
 
   // TODO WARN IF NO MACID !
 
-  var app = require('../app');
+  var app = require('../app.js').app;
   var this_socket = socket;
 
   console.log("");
@@ -544,7 +559,7 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbee
   // asyncWriteRead
   // 0|www  | res of asyncWriteRead: "err: asyncWriteRead timed out" (if it's nothing, we return)
   // 0|www  | TypeError: Cannot read property '0' of undefined
-  // 0|www  |     at Function.GatewaySchema.statics.get_digital_io (/home/nodeuser/xerisure/models/gatewayMod.js:525:40)
+  // 0|www  |     at Function.Gateway.statics.get_digital_io (/home/nodeuser/xerisure/models/gatewayMod.js:525:40)
   // 0|www  |     at <anonymous>
   // 0|www  | pinState: undefined
 
@@ -614,8 +629,8 @@ GatewaySchema.statics.get_digital_io = async function ( socket, macid, pin, xbee
 
 };
 
-
-GatewaySchema.statics.set_digital_io_with_timed_reset = async function ( socket, macid, pin, state, durMins ) {
+// was statics
+Gateway.set_digital_io_with_timed_reset = async function ( socket, macid, pin, state, durMins ) {
 
   console.log("");
   console.log("gatewayMod: set_digital_io_with_timed_reset started ... duration is: " + durMins + "(Will add a standard base delay of 5 seconds)");
@@ -652,8 +667,8 @@ GatewaySchema.statics.set_digital_io_with_timed_reset = async function ( socket,
 
 
 
-
-GatewaySchema.statics.set_digital_io_with_timed_reset_known_state_values = async function ( 
+// was statics
+Gateway.set_digital_io_with_timed_reset_known_state_values = async function ( 
   socket, macid, pin, state, durMins, offstate, xbeeAPI ) {
 
   // This is called like from when water Run button is clicked
@@ -685,10 +700,10 @@ GatewaySchema.statics.set_digital_io_with_timed_reset_known_state_values = async
 
 
 
+// was statics
+Gateway.set_digital_io = async function ( socket, macid, pin, state, xbeeAPI ) {
 
-GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, state, xbeeAPI ) {
-
-  var app = require('../app');
+  var app = require('../app.js').app;
   var this_socket = socket;
 
   state = '' + state;
@@ -758,7 +773,11 @@ GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, stat
   // TODO add description that includes the result of the get_digital_io too? etc.
   // At present - returning if the get fails above - so no log in that case ... (?)
   if ( logThisXaction ) {
-    Log.createDioEntryByMacAndPin(macid, pin, state); 
+    LogEvent.createDioEntryByMacAndPin(macid, pin, state)
+    .then(() => {
+      socket.emit('client_load_radio_data', macid); // for update log event and time since last click
+      console.log(`just finished socket emit client load radio data post createDioEntryByMacAndPin`.red);
+    });
   } else {
     console.log(`skipping logging this set_digital_io xaction`);
     this_socket.emit('data',"<br>> Skipping log of the set digital io event");
@@ -792,9 +811,10 @@ GatewaySchema.statics.set_digital_io = async function ( socket, macid, pin, stat
 // https://stackoverflow.com/questions/35962539/express-mongoose-model-find-returns-undefined
 // https://stackoverflow.com/questions/45379341/function-returns-undefined-when-i-want-to-find-documents-from-dababase-in-mongoo
 // https://stackoverflow.com/questions/50555343/async-await-mongoose-doesnt-always-run-correctly
-GatewaySchema.statics.get_db_radio_mac_ids = async function (socket) {
+// was statics
+Gateway.get_db_radio_mac_ids = async function (socket) {
 
-    /*await Mdbradio.find({}, 'name mac description', function (err, radios) {
+    /*await Radio.find({}, 'name mac description', function (err, radios) {
           if (err) {
             console.log(err);
           } else {
@@ -804,7 +824,7 @@ GatewaySchema.statics.get_db_radio_mac_ids = async function (socket) {
           }
       });*/
 
-    var radios = await Mdbradio.listAll();
+    var radios = await Radio.listAll();
 
     socket.emit('macIdsFromDb', 'These are your database mac ids:<br>' + JSON.stringify(radios));
 };
@@ -812,15 +832,17 @@ GatewaySchema.statics.get_db_radio_mac_ids = async function (socket) {
 
 
 // TODO match this with other imlementation to keep the names in there too
-GatewaySchema.statics.pop_db_radio_mac_ids = async function (socket) {
-    var radios = await Mdbradio.listAll();
+// was statics
+Gateway.pop_db_radio_mac_ids = async function (socket) {
+    var radios = await Radio.listAll();
     // https://stackoverflow.com/questions/5515310/is-there-a-standard-function-to-check-for-null-undefined-or-blank-variables-in
     if ( radios ) {
       socket.emit('macIdsFromDb', 'These are your database mac ids:<br>' + JSON.stringify(radios));
-      var sel = '<select name=\"macIdsSelSel\" id=\"macIdsSelSel\" onchange=\"macIdsSelFcn()\" onclick=\"macIdsSelFcn()\">';
+      console.log(`These are your database mac ids: ${JSON.stringify(radios)}`);
+      var sel = '<select name=\"macIdsSelSel\" class=\"form-control form-control-lg\" id=\"macIdsSelSel\" onchange=\"macIdsSelFcn()\" onclick=\"macIdsSelFcn()\">';
       radios.forEach(function(radio) {
           //var mac = s.replace(/\r[\w\d][^\r]*\rFFFE/,"").replace(/FFFE/g,"").replace(/\W/g,"");
-          var mac = radio.mac;
+          var mac = radio.macid;
 
           //var name = s.replace(/FFFE\r0013A200\r[0-9A-F]{8}/,"").replace(/FFFE/g,"").replace(/[^\w\s]/g,"").replace(/^\s/,"").replace(/\s$/,"");
           var name = radio.name;
@@ -845,8 +867,8 @@ GatewaySchema.statics.pop_db_radio_mac_ids = async function (socket) {
 
 
 
-
-GatewaySchema.statics.store_nd_radios_in_db = async function (socket, radios) {
+// was statics
+Gateway.store_nd_radios_in_db = async function (socket, radios) {
 
   // TODO I'm pretty sure this is the totally wrong way to organize this workflow
 
@@ -856,7 +878,7 @@ GatewaySchema.statics.store_nd_radios_in_db = async function (socket, radios) {
     await socket.emit('data', "MAC: " + r.mac + ", Name: " + r.name + "<br>");
   });
 
-  await Mdbradio.storeAll(radios);
+  await Radio.storeAll(radios);
 
   await socket.emit('data', "<br>Completed storing ND Radios in DB<br>");
 
@@ -864,11 +886,11 @@ GatewaySchema.statics.store_nd_radios_in_db = async function (socket, radios) {
 
 
 
-
-GatewaySchema.statics.set_destination_radio_mac_id = async function ( socket, macid ) {
+// was statics
+Gateway.set_destination_radio_mac_id = async function ( socket, macid ) {
 
     // TODO DRY - How? Socket_id only after establishes socket, so again some sort of null checks
-    var app = require('../app');
+    var app = require('../app.js').app;
     var io = app.io;
     var socket_id = app.locals.gateway_socket_id;
     var this_socket = socket; // io.sockets.connected[socket_id];
@@ -887,10 +909,10 @@ GatewaySchema.statics.set_destination_radio_mac_id = async function ( socket, ma
 
 
 
+// was statics
+Gateway.onSocketConnect = async function (socket) {
 
-GatewaySchema.statics.onSocketConnect = async function (socket) {
-
-    console.log("Got into GatewaySchema.statics.onSocketConnect");
+    console.log("Got into Gateway.statics.onSocketConnect");
     await Gateway.get_gateway_xbee_mac(socket);
 };
 
@@ -898,10 +920,10 @@ GatewaySchema.statics.onSocketConnect = async function (socket) {
 
 
 
+// was statics
+Gateway.initialize_gateway_serial = function (port) {
 
-GatewaySchema.statics.initialize_gateway_serial = function (port) {
-
-    console.log("Got into GatewaySchema.statics.initialize_gateway_serial");
+    console.log("Got into Gateway.statics.initialize_gateway_serial");
 
     var _port_list = Gateway.serial_port_list_sync();
     var _first_port = Gateway.serial_port_to_use(_port_list);
@@ -913,8 +935,8 @@ GatewaySchema.statics.initialize_gateway_serial = function (port) {
 
 
 
-
-GatewaySchema.statics.get_gateway_xbee_mac = async function (socket) {
+// was statics
+Gateway.get_gateway_xbee_mac = async function (socket) {
 
     console.log("Got into get_gateway_xbee_mac");
 
@@ -935,8 +957,8 @@ GatewaySchema.statics.get_gateway_xbee_mac = async function (socket) {
 
 
 
-
-GatewaySchema.statics.get_gateway_radio_dios = async function (socket) {
+// was statics
+Gateway.get_gateway_radio_dios = async function (socket) {
 
     console.log("Got into get_gateway_radio_dios");
 
@@ -968,8 +990,8 @@ GatewaySchema.statics.get_gateway_radio_dios = async function (socket) {
 
 
 
-
-GatewaySchema.statics.get_remote_radio_dios = async function (socket, macid) {
+// was statics
+Gateway.get_remote_radio_dios = async function (socket, macid) {
 
     console.log("Got into get_remote_radio_dios");
 
@@ -1016,8 +1038,8 @@ GatewaySchema.statics.get_remote_radio_dios = async function (socket, macid) {
 
 
 // TODO fix naming conventions
-
-GatewaySchema.statics.get_gateway_xbee_dest_mac = async function (socket) {
+// was statics
+Gateway.get_gateway_xbee_dest_mac = async function (socket) {
 
     console.log("Got into get_gateway_xbee_dest_mac");
 
@@ -1038,8 +1060,8 @@ GatewaySchema.statics.get_gateway_xbee_dest_mac = async function (socket) {
 
 
 
-
-GatewaySchema.statics.do_node_discover = async function (socket) {
+// was statics
+Gateway.do_node_discover = async function (socket) {
 
 
 
@@ -1090,50 +1112,71 @@ GatewaySchema.statics.do_node_discover = async function (socket) {
 };
 
 
-
-GatewaySchema.statics.load_radio_data = async function( socket, macId )  {
+// was statics
+Gateway.load_radio_data = async function( socket, macId )  {
 	
 	//macId += 'xxxx'; // crude test for bad radio macId
 	
-	Mdbradio.find({mac: macId}).populate({
-		    path: 'wateringcircuits', 
-		    populate: { path: 'logEvents' }
-		  }).lean().exec( function(err, rdat) {
-		  if (err) console.log(err);
-		  rdat = rdat[0];
-		  //var formatted = "Watering circuits:<br><br>"; // JSON.stringify(rdat) + "<br><br>Watering circuits:<br><br>";
-		  var formatted = "";
-		  if ( rdat && rdat.wateringcircuits ) {
-		    // TODO table class for mobile or update media css
-			formatted += "<table class=\"table table-striped table-sm table-responsive-sm\"><tr><th>#</th><th>Name</th><th>GPIO</th><th>On</th><th>Off</th><th>Timed Cycle</th><th>Descrip</th><th>Last Active</th></tr>";
-  		    for ( let wc of rdat.wateringcircuits ) {
-			  wc = new Wateringcircuit(wc);
-			  formatted += "<tr>"; 
-			  formatted += "<td>" + wc.number + "</td><td>" + wc.name;
-            formatted += `<br><button class="btn btn-primary btn-xs" onclick="socket.emit('client_get_digital_io', '${macId}', '${wc.gpionumber}', '${wc.offstate}');">Get State</button>`;
-        formatted += "</td><td>" + wc.gpionumber + "</td><td>"; // + wc.onstate;
-			  formatted += "<button class=\"btn btn-primary\" onclick=\" socket.emit('client_set_digital_io', \'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.onstate + "\');\">On (" + wc.onstate + ")</button>"; // socket.emit('client_set_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
-              formatted += "</td><td>"; // + wc.offstate;
-              formatted += "<button class=\"btn btn-primary\" onclick=\" socket.emit('client_set_digital_io', \'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.offstate + "\');\">Off (" + wc.offstate + ")</button>";
-              formatted += "</td><td>";
-              formatted += "<button class=\"btn btn-primary\" onclick=\"waterCycle(\'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.onstate + "\', \'" + wc.offstate + "\');\">Run</button>";
-              formatted += "</td><td>";
-              formatted += wc.description + "</td><td>";
-              formatted += wc.get('lastActiveString') + "</td>" //wc.logEvents + "</td>";
-			  formatted += "</tr>";
-		    }
-		    formatted += "</table>";
-		  } else {
-			  // As of yet untested TODO-TEST
-			  formatted += "No watering circuits found for this radio. Radio data is:<br><br>";
-			  formatted += JSON.stringify(rdat);
-			  formatted += "<br><br>for macId: " + macId;
-		  }
-		  // TODO add function or option etc to check for whether this is off or on state and set log correctly and state correctly 
-		  socket.emit('radiodata', formatted);
-	  }
-	);
-	
+  // Radio.find({mac: macId}).populate({
+  //   path: 'wateringcircuits', 
+  //   populate: { path: 'logEvents' }
+  // }).lean().exec( function(err, rdat)
+
+  let rdat = await Radio.findAll({
+    where: {
+      macid: macId
+    },
+    include: [{ 
+        model: WateringCircuit, 
+        include: [{ 
+          model: LogEvent,
+          //order: [[ 'createdAt', 'DESC']] // this doesn't work here - but see below:
+        }] // already included at the water circuit level?
+    }],
+    order: [
+      [{ model: WateringCircuit}, 'number', 'ASC'],
+      [{ model: WateringCircuit},
+        { model: LogEvent }, 'createdAt', 'DESC']
+  ]
+    // .populate({
+    //   path: 'wateringcircuits', 
+    //   populate: { path: 'logEvents' }
+  });
+  //.lean()
+  //.exec( function(err, rdat) {
+  //if (err) console.log(err);
+  console.log(`rdat is: ${JSON.stringify(rdat, null, 2)}`);
+  rdat = rdat[0];
+  //var formatted = "Watering circuits:<br><br>"; // JSON.stringify(rdat) + "<br><br>Watering circuits:<br><br>";
+  var formatted = "";
+  if (rdat && rdat.wateringcircuits) {
+    // TODO table class for mobile or update media css
+    formatted += "<table class=\"table table-striped table-sm table-responsive-sm\"><tr><th>#</th><th>Name</th><th>GPIO</th><th>On</th><th>Off</th><th>Timed Cycle</th><th>Descrip</th><th>Last Active</th></tr>";
+    for (let wc of rdat.wateringcircuits) {
+      //wc = new WateringCircuit(wc);
+      formatted += "<tr>";
+      formatted += "<td>" + wc.number + "</td><td>" + wc.name;
+      formatted += `<br><button class="btn btn-primary btn-xs" onclick="socket.emit('client_get_digital_io', '${macId}', '${wc.gpionumber}', '${wc.offstate}');">Get State</button>`;
+      formatted += "</td><td>" + wc.gpionumber + "</td><td>"; // + wc.onstate;
+      formatted += "<button class=\"btn btn-primary\" onclick=\" socket.emit('client_set_digital_io', \'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.onstate + "\');\">On (" + wc.onstate + ")</button>"; // socket.emit('client_set_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
+      formatted += "</td><td>"; // + wc.offstate;
+      formatted += "<button class=\"btn btn-primary\" onclick=\" socket.emit('client_set_digital_io', \'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.offstate + "\');\">Off (" + wc.offstate + ")</button>";
+      formatted += "</td><td>";
+      formatted += "<button class=\"btn btn-primary\" onclick=\"waterCycle(\'" + macId + "\', \'" + wc.gpionumber + "\', \'" + wc.onstate + "\', \'" + wc.offstate + "\');\">Run</button>";
+      formatted += "</td><td>";
+      formatted += wc.description + "</td><td>";
+      formatted += wc.get('lastActiveString') + "</td>" //wc.logEvents + "</td>";
+      formatted += "</tr>";
+    }
+    formatted += "</table>";
+  } else {
+    // As of yet untested TODO-TEST
+    formatted += "No watering circuits found for this radio. Radio data is:<br><br>";
+    formatted += JSON.stringify(rdat);
+    formatted += "<br><br>for macId: " + macId;
+  }
+  // TODO add function or option etc to check for whether this is off or on state and set log correctly and state correctly 
+  socket.emit('radiodata', formatted);
 };
 
 
@@ -1141,7 +1184,7 @@ GatewaySchema.statics.load_radio_data = async function( socket, macId )  {
 
 // Yeah, this needs to be at the end to capture all of the statics, so it seems at this point ...
 
-var Gateway = mongoose.model('Gateway', GatewaySchema);
+// var Gateway = mongoose.model('Gateway', Gateway);
 
 module.exports = {
     Gateway: Gateway
@@ -1149,4 +1192,4 @@ module.exports = {
 
 
 
-console.log("Dev Echo: Gateway model parsed to end");
+//console.log("Dev Echo: Gateway model parsed to end");

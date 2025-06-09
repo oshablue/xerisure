@@ -1,4 +1,4 @@
-var Gateway = require('../models/gatewayMod').Gateway;
+var Gateway = require('../models/Gateway').Gateway;
 
 
 //

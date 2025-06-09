@@ -2,12 +2,13 @@ extends layout
 
 block scripts
     //- script(src='https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js')
-    script(src='/javascripts/socket.io.js')
+    //-script(src='/javascripts/socket.io.js') now try from the server exposed bundle for v4
+    script(src='/socket.io/socket.io.js')
     script(src='/javascripts/socketwork.js')
 
 block title
-  h2= siteName + ' :: Gateway'
-  p(class='small text-muted') Water Agua L'Eau 
+  h4.my-0.py-0= siteName + ' :: Gateway'
+  p(class='py-0 my-0 small text-muted') Water Agua L'Eau 
 
 block content
   #setDigitalIoByApi(class='card pl-2')
@@ -17,12 +18,12 @@ block content
       p.small
         | Available Radio MAC IDs from Node Discover or Database which
         | defaults to loading the database values on socket connect:
+      div.form-inline
         div#macIdsSel
-          select#macIdsSelSel(name="macIdsSelSel")
+          select#macIdsSelSel(name="macIdsSelSel" class="form-control form-control-lg")
             option(value=-1) #{"Please run node discover"}
-
-      label(for='setDigitalIoByApiMacId') Radio MAC ID:
-      input#setDigitalIoByApiMacIdInputTxt.form-control(type='text', placeholder='0013A200 40nnmmpp' name='setDigitalIoByApiMacIdInputTxt')
+        label.pl-1(for='setDigitalIoByApiMacIdInputTxt') Radio MAC ID:
+          input#setDigitalIoByApiMacIdInputTxt.form-control(type='text', placeholder='0013A200 40nnmmpp' name='setDigitalIoByApiMacIdInputTxt')
 
       div(class='card mt-3')
         div(class='card-body')
@@ -30,7 +31,7 @@ block content
             Stored Watering Circuits
           p(class='card-text')
             |Water for [mins] 
-            input#waterCycleDurationMinutesTxt(type='text', placeholder='45', class='m-0') 
+            input#waterCycleDurationMinutesTxt(type='text', placeholder='120', class='m-0') 
             div#storedWateringCircuitsHeaderDiv
             div#storedWateringCircuitsDiv
 
@@ -139,7 +140,7 @@ block content
       h3 Set Destination Radio MAC ID
       p This has not bearing on setting digital (GPIO) pin states or functions because that is sent via API command (see below)
       div.form-group
-        label(for='setDestinationRadioMacId') ATDH/L:
+        label(for='setDestinationRadioMacIdInputTxt') ATDH/L:
         input#setDestinationRadioMacIdInputTxt.form-control(type='text', placeholder='0013A200 40nnmmpp' name='setDestinationRadioMacIdInputTxt')
         button#setDestinationRadioMacIdInputBtn.btn.btn-primary
           | Set Destination Radio MAC ID

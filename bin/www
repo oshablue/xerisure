@@ -4,7 +4,7 @@
  * Module dependencies.
  */
 
-var app = require('../app');
+var app = require('../app').app;
 var debug = require('debug')('xerisure:server');
 var http = require('http');
 
@@ -21,10 +21,14 @@ app.set('port', port);
 
 var server = http.createServer(app);
 
-
-var io = app.io;
-io.attach( server );
+// Old? Pre 2025Q2 ie < 6-6-25?
+//var io = app.io;
+//io.attach( server );
 //console.log(io);
+// IO v4.8.n
+const { Server } = require('socket.io');
+const io = new Server(server);
+
 
 
 
@@ -103,11 +107,11 @@ function onListening() {
 // var sport; // SerialPort global???
 // app.locals.sport = sport;
 
-var Gateway = require('../models/gatewayMod').Gateway;
+var Gateway = require('../models/Gateway.js').Gateway;
 
 var utils = require('../lib/utils.js');
 
-var SerialPort = require('serialport');
+var SerialPort = require('serialport').SerialPort; // 6-6-25 add .SerialPort for updated package
 
 // TODO pull in the code to list and grab the first /dev/ttyUSB0 in our case
 //
@@ -116,11 +120,12 @@ var portName = utils.getFirstTtyUsbDeviceSync();
 // Test post-sleep recovery by setting this name to something that doesn't exist 
 // like /dev/ttyUSB9 or whatever
 //var sp; // = new SerialPort('/dev/ttyUSB999');
-portName = '/dev/ttyUSB999';
+//portName = '/dev/ttyUSB1'; //999';
 
 var sp = new SerialPort( 
-  portName,
+  //portName, // update for newer package
   {
+    path: portName,
     baudRate: 9600,
     autoOpen: false 
   }
@@ -362,7 +367,7 @@ var reopenSerialPort = async function() {
 
 
 
-var Gateway = require('../models/gatewayMod').Gateway;
+//var Gateway = require('../models/gatewayMod').Gateway;
 
 io.of('/gateway').on('connection', async function (socket) {
   

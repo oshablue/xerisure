@@ -9,8 +9,13 @@ var logger = require('morgan');
 // Q1 2019
 // Is body parser still needed for our versions of express, etc.?
 const bodyParser = require('body-parser'); // https://codeburst.io/writing-a-crud-app-with-node-js-and-mongodb-e0827cbbdafb
-const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
+
+
+// 6-6-25 Removing mongoose / mongodb because on this PC after Ubuntu update to 22.04 LTS without AVX instruction in the CPU
+// get core dump but cannot install non-AVX version 4.4 or less on Ubuntu 22.04 - so here we are
+//const mongoose = require('mongoose');
+//const Schema = mongoose.Schema;
+
 
 var app = express();
 
@@ -33,6 +38,60 @@ var app = express();
 
 
 
+const {sequelize} = require('./db');
+sequelize.sync() // Sync the database schema to the definitions in the model files
+  .then(() => {
+    console.log("Database synchronized successfully");
+  })
+  .catch(err => {
+    console.error("Unable to synchronize database", err);
+  });
+
+
+sequelize.getQueryInterface().showAllSchemas().then((tableObj) => {
+  console.log('// Tables in database','==========================');
+  console.log(tableObj);
+})
+.catch((err) => {
+  console.log('showAllSchemas ERROR',err);
+});
+
+sequelize.getQueryInterface().describeTable('Radios').then((tableObj) => {
+  console.log('// Describe Radios','==========================');
+  console.log(tableObj);
+})
+.catch((err) => {
+  console.log('showAllSchemas ERROR',err);
+});
+
+sequelize.getQueryInterface().describeTable('WateringCircuits').then((tableObj) => {
+  console.log('// Describe WateringCircuits','==========================');
+  console.log(tableObj);
+})
+.catch((err) => {
+  console.log('showAllSchemas ERROR',err);
+});
+
+
+sequelize.getQueryInterface().describeTable('LogEvents').then((tableObj) => {
+  console.log('// Describe LogEvents','==========================');
+  console.log(tableObj);
+})
+.catch((err) => {
+  console.log('showAllSchemas ERROR',err);
+});
+
+
+// sequelize.getQueryInterface().describeTable('LogEvents').then((tableObj) => {
+//   console.log('// Describe LogEvents','==========================');
+//   console.log(tableObj);
+// })
+// .catch((err) => {
+//   console.log('showAllSchemas ERROR',err);
+// });
+
+
+
 
 // This should be before routes (?)
 app.use(bodyParser.json());
@@ -40,27 +99,50 @@ app.use(bodyParser.urlencoded({extended:false})); // false = use querystring = d
 
 
 // dB Setup
-let dev_db_url = "mongodb://xerisureUser:"+encodeURIComponent("captainXeri1@8")+"@localhost:27017/xerisure";
-let mongoDB = process.env.MONGODB_URI || dev_db_url;
-mongoose.connect(mongoDB, { useNewUrlParser: true});
-mongoose.Promise = global.Promise;
-let db = mongoose.connection;
-db.on('error', console.error.bind(console, 'MongoDB connection error:'));
+// 6-6-25 Update switch to something else?
+//let dev_db_url = "mongodb://xerisureUser:"+encodeURIComponent("captainXeri1@8")+"@localhost:27017/xerisure";
+//let mongoDB = process.env.MONGODB_URI || dev_db_url;
+//mongoose.connect(mongoDB, { useNewUrlParser: true});
+//mongoose.Promise = global.Promise;
+//let db = mongoose.connection;
+//db.on('error', console.error.bind(console, 'MongoDB connection error:'));
+//const DbConnector = require('better-sqlite3');
+//const db = new DbConnector('xerisure-6-6-25.sqlite');
+// const {Sequelize} = require ("sequelize");
+// const sequelize = new Sequelize(
+//   {
+//     dialect: "sqlite",
+//     host:"./xerisure-6-6-25.sqlite"
+//   }
+// );
+
+// const connectedDB = async () => {
+//   sequelize.sync();
+//   await sequelize.authenticate();
+//   console.log("Connected to DB".yellow.underline);
+// };
+
+
+
 
 // Routes
 var indexRouter = require('./routes/indexRou');
-var usersRouter = require('./routes/usersRou');
+// var usersRouter = require('./routes/usersRou');
 var gatewayRouter = require('./routes/gatewayRou');
-var mdbradioRouter = require('./routes/mdbradioRou');
-var devRouter = require('./routes/devRou');
-var wateringcircuitRouter = require('./routes/wateringcircuitRou');
-var logRouter = require('./routes/logRou');
+// var mdbradioRouter = require('./routes/mdbradioRou');
+// var devRouter = require('./routes/devRou');
+// var wateringcircuitRouter = require('./routes/wateringcircuitRou');
+// var logRouter = require('./routes/logRou');
 
 
+// Old? Prior to update to sequelize and node 24?
+// var socket_io = require('socket.io');
+// var io = socket_io();
+// app.io = io;
 
-var socket_io = require('socket.io');
-var io = socket_io();
-app.io = io;
+// New? 
+//const { Server } = require('socket.io');
+
 
 
 
@@ -100,12 +182,12 @@ app.locals.gateway_socket_id = null;
 
 
 app.use('/', indexRouter);
-app.use('/users', usersRouter);
+// app.use('/users', usersRouter);
 app.use('/gateway', gatewayRouter);
-app.use('/mdbradios', mdbradioRouter);
-app.use('/dev', devRouter);
-app.use('/wateringcircuits', wateringcircuitRouter);
-app.use('/logs', logRouter);
+// app.use('/mdbradios', mdbradioRouter);
+// app.use('/dev', devRouter);
+// app.use('/wateringcircuits', wateringcircuitRouter);
+// app.use('/logs', logRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -123,4 +205,4 @@ app.use(function(err, req, res, next) {
   res.render('error');
 });
 
-module.exports = app;
+module.exports = { app };

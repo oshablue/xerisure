@@ -14,6 +14,25 @@ with nodes etc., currently xbee style radios
 
 ### Dev / Deploy / Versions ###
 
+
+=== 6-7-25 ===
+
+Node Engine: 24.1.0
+npm 11.3.0
+nvm 0.38.0 
+Ubuntu 22.04 LTS
+
+Switching from MongoDB to Sqlite because hardware has no AVX instruction, thus newer MongoDBs cannot run (core dump) and oldest non-AVX version is 4.4 and 4.4 or less will only run on 20.04 or less.
+
+Thus re-writing this and abstracting to sequelize to convert the mongoose schemas to general schemas that can then be connected to whatever back end.
+
+Used npm tools to update all packages to latest version and thus also updating some serial port interfacing as well.
+
+
+
+
+=== Prior ===
+
 Node Engine: currently v8.11.3
 
 
@@ -95,3 +114,11 @@ https://askubuntu.com/questions/1044988/usb-ports-not-working-after-resume-from-
 for other ideas and methods.
 
 Currently we have in www just select the first ttyUSB# in the list - and after wake need a function to check and re-instantiate the serialport instance.
+
+
+## Reminders
+
+To see validation errors on seeding for example:
+```
+npx sequelize-cli db:seed:all --debug
+```

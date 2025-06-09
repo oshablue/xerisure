@@ -212,6 +212,7 @@ socket.on('macids', function(data) {
   macIds.innerHTML = data;
   $(macIds).show();
 });
+
 socket.on('macidssel', function(data) {   // macIdsSel is a div containing macIdsSelSel the actual select html tag set
   macIdsSel.innerHTML = data;
   $(macIdsSel).show();
