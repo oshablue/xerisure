@@ -175,6 +175,9 @@ window.onload = function () {
 } // end of window.onload
 
 
+
+
+
 //
 // TODO -- on serial connected -- enable buttons
 //
@@ -190,18 +193,31 @@ var socket = io('/gateway');
 //
 //var socket = io.connect(origin, {transports: ['websocket'], upgrade: false});
 
+
+function showGlobalSpinner() {
+  document.getElementById('global-loading-spinner').style.display = '';
+  console.log("showGlobalSpinner called");
+}
+function hideGlobalSpinner() {
+  document.getElementById('global-loading-spinner').style.display = 'none';
+    console.log("hideGlobalSpinner called");
+}
+
 socket.on('connected', function(status){
   connection.innerHTML += "Socket Connected " + status;
   //socket.emit('join', 'Client emit: client socket.on(connected) reply to server connected msg via socket.on(connected) fnc');
   socket.emit('setupSerialPort');
 });
+
 socket.on('disconnect', function(){
   connection.innerHTML = "Socket Disconnected";
 });
+
 socket.on('data', function (data) {
   statuslog.innerHTML = statuslog.innerHTML + data;
   statuslog.scrollTop = statuslog.scrollHeight;
 });
+
 /*socket.on('connect', function(data) {
   connection.innerHTML += "<br>socket.on('connect') [next: emit join to server]<br>" + socket.id + "<br>";
   socket.emit('join', 'Client emit: client socket.on(connect) fcn fired'); // may not go through?
@@ -232,10 +248,13 @@ socket.on('macidssel', function(data) {   // macIdsSel is a div containing macId
   socket.emit('client_load_radio_data', newMac);
   // Yeah this function works enough to populate on page load
 });
+
 socket.on('macIdsFromDb', function(data) {
   divMacIdsFromDb.innerHTML = data;
   $(macIdsFromDb).show();
 });
+
+/** Called after serial is complete or times out */
 socket.on('getDioPinStateResult', function(data) {
   divGetDioPinState.innerHTML = data;
   $(getDioPinState).show();
@@ -243,7 +262,9 @@ socket.on('getDioPinStateResult', function(data) {
   setTimeout(function(){
     $(getDioPinState).css('background-color','white'); // TODO really need comparison for green/red etc as this builds out
   }, 2000);
+  hideGlobalSpinner();
 });
+
 socket.on('getDioPinStateResultIndicator', function(data) {
   var div = $();
   
@@ -279,9 +300,11 @@ socket.on('getDioPinStateResultIndicator', function(data) {
   }
 
 });
+
 socket.on('radiodata', function(data) {
 	$('#storedWateringCircuitsDiv').html(data);
 });
+
 socket.on('updateDioPinLastActiveCell', function(data) {
   var div = $();
   
@@ -317,5 +340,17 @@ socket.on('updateDioPinLastActiveCell', function(data) {
     }
   }
 
+});
+
+
+
+socket.on('showGlobalSpinner', function() {
+  console.log("showGlobalSpinner called from socket.on('showGlobalSpinner')");
+  showGlobalSpinner();
+});
+
+socket.on('hideGlobalSpinner', function() {
+  console.log("hideGlobalSpinner called from socket.on('hideGlobalSpinner')");
+  hideGlobalSpinner();
 });
 

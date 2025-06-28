@@ -311,12 +311,12 @@ backendEvents.on('portReopen', function() {
 // Back to singleton for now - oy.
 // Let's see if we can fire this up
 // and replace our early custom api.
-var xbee_api = require('xbee-api');
-var XBCs = xbee_api.constants;
+// var xbee_api = require('xbee-api');
+// var XBCs = xbee_api.constants;
 
-var xbeeAPI = new xbee_api.XBeeAPI({
-  api_mode: 1
-});
+// var xbeeAPI = new xbee_api.XBeeAPI({
+//   api_mode: 1
+// });
 
 // Moved to async function above
 // sp.pipe(xbeeAPI.parser);
@@ -369,7 +369,7 @@ let pushLog = function (m, socket) {
 
 
 
-
+// TODO this needs now to be refactored to reflect the retries code
 var reopenSerialPort = async function() {
   portName = utils.getFirstTtyUsbDeviceSync();
   //await setupAndOpenSerialPort(portName);
@@ -430,24 +430,27 @@ io.of('/gateway').on('connection', async function (socket) {
   // TODO send serial port connected status to the client and 
   // client should show in some useful UI
 
-  if ( sp.readable ) {
-    console.log(`sp.readable: ${sp.readable}`);       // 
-    console.log(`serial port is open: ${sp.isOpen}`);
-  }
+  // Serial Port stuff no longer needs to be here ?
+  // if ( sp && sp !== null && sp.readable ) {
+  //   console.log(`sp.readable: ${sp.readable}`);       // 
+  //   console.log(`serial port is open: ${sp.isOpen}`);
+  // } else {
+  //   console.log(`sp is null or not readable: ${sp}`);
+  // }
 
-  if ( !sp ) {
-    var m = `sp is nothing - that's a problem.`;
-    pushLog(m, socket);
-  }
+  // if ( !sp ) {
+  //   var m = `sp is nothing - that's a problem.`;
+  //   pushLog(m, socket);
+  // }
 
-  // TODO - do we want to check how many clients connected and 
-  // try the re-open conditionally?
-  if ( !sp.isOpen ) {
-    var m = `sp is not open - trying to re-open, using first matching ttyUSB dev path...`;
-    pushLog(m, socket);
-    await reopenSerialPort();
-    console.log(`${sp.path}`);
-  }
+  // // TODO - do we want to check how many clients connected and 
+  // // try the re-open conditionally?
+  // if ( !sp.isOpen ) {
+  //   var m = `sp is not open - trying to re-open, using first matching ttyUSB dev path...`;
+  //   pushLog(m, socket);
+  //   await reopenSerialPort();
+  //   console.log(`${sp.path}`);
+  // }
 
   socket.on('disconnect', function () {
       //console.log("Server got socket disconnect for: " + socket.id);

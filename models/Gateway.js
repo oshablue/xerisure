@@ -13,7 +13,10 @@ var xbee_api = require('xbee-api');
 
 
 var Utils = require('../lib/utils.js');
-var sleep = Utils.sleep;
+// var sleep = Utils.sleep;
+// var showGlobalSpinner = Utils.showGlobalSpinner;
+// var hideGlobalSpinner = Utils.hideGlobalSpinner;
+
 
 
 var Radio = require('./Radio');
@@ -457,6 +460,9 @@ function asyncWriteRead ( returnEventMsgType, outgoingData, xbeeAPI ) {
 Gateway.get_digital_io = async function ( socket, macid, pin, xbeeAPI) { // sp ) {
 
   // TODO WARN IF NO MACID !
+
+  //showGlobalSpinner();
+  socket.emit('showGlobalSpinner', true);
 
   var app = require('../app.js').app;
   var this_socket = socket;

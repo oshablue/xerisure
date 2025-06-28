@@ -65,5 +65,9 @@ html(lang='en')
                   span(class='badge badge-secondary mt-1')
                     h5 Off
 
+        div#global-loading-spinner(style="display:none; position:fixed; top:20px; right:20px; z-index:2000;")
+          div.spinner-border.text-primary(role="status")
+            span.sr-only Loading...
+
         div(class='col-sm-12')
           block content
