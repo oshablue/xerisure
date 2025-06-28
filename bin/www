@@ -555,6 +555,17 @@ io.of('/gateway').on('connection', async function (socket) {
     Gateway.load_radio_data(socket, macId);
   });
 
+  socket.on('get_serialport_status', function () {
+    console.log("get_serialport_status");
+    if (sp && sp.isOpen) {
+      pushLog(`Serial port is open: ${sp.path}`, socket);
+      socket.emit('serialport_status', { status: 'open', path: sp.path });
+    } else {
+      pushLog("Serial port is not open", socket);
+      socket.emit('serialport_status', { status: 'not_open' });
+    }
+  });
+
   Gateway.pop_db_radio_mac_ids(socket);
   
 

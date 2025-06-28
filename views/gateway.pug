@@ -24,6 +24,11 @@ block content
             option(value=-1) #{"Please run node discover"}
         label.pl-1(for='setDigitalIoByApiMacIdInputTxt') Radio MAC ID:
           input#setDigitalIoByApiMacIdInputTxt.form-control(type='text', placeholder='0013A200 40nnmmpp' name='setDigitalIoByApiMacIdInputTxt')
+        div#serial-port-status(style="padding:8px; font-weight:bold; color:gray;")
+          span#serial-port-status-indicator.badge.rounded-circle(
+            style="display:inline-block; width:30px; height:30px; margin-left:8px; background-color:gray;"
+            title="Serial Port Status Unknown"
+          )
 
       div(class='card mt-3')
         div(class='card-body')
@@ -220,3 +225,22 @@ block content
       var inp = $('input[id="waterCycleDurationMinutesTxt"]');
       socket.emit('client_set_digital_io_with_timed_reset_known_state_values', macId, pin, onstate, inp.val(), offstate);
     }
+
+    var gatewaySocket = io('/gateway');
+    gatewaySocket.on('serialport_status', function(data) {
+      var indicator = document.getElementById('serial-port-status-indicator');
+      if (!indicator) return;
+      if (data.status === 'open') {
+        indicator.style.backgroundColor = 'green';
+        indicator.title = 'Serial port open';
+      } else if (data.status === 'error') {
+        indicator.style.backgroundColor = 'red';
+        indicator.title = 'Serial port error';
+      } else {
+        indicator.style.backgroundColor = 'orange';
+        indicator.title = 'Serial port not open';
+      }
+    });
+
+    gatewaySocket.emit('get_serialport_status');
+
