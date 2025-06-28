@@ -111,39 +111,87 @@ var Gateway = require('../models/Gateway.js').Gateway;
 
 var utils = require('../lib/utils.js');
 
-var SerialPort = require('serialport').SerialPort; // 6-6-25 add .SerialPort for updated package
-
-// TODO pull in the code to list and grab the first /dev/ttyUSB0 in our case
-//
-// See readme - 8.x version in use now with nodejs engine 8.11.3
+var SerialPort = require('serialport').SerialPort;
 var portName = utils.getFirstTtyUsbDeviceSync();
-// Test post-sleep recovery by setting this name to something that doesn't exist 
-// like /dev/ttyUSB9 or whatever
-//var sp; // = new SerialPort('/dev/ttyUSB999');
-//portName = '/dev/ttyUSB1'; //999';
 
-var sp = new SerialPort( 
-  //portName, // update for newer package
-  {
-    path: portName,
-    baudRate: 9600,
-    autoOpen: false 
+var sp = null;
+var xbee_api = require('xbee-api');
+var XBCs = xbee_api.constants;
+var xbeeAPI = new xbee_api.XBeeAPI({ api_mode: 1 });
+
+async function openSerialPortWithRetry(options, maxRetries = 10, delayMs = 2000) {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      // Log the serial port open attempt and attempt number
+      console.log(`Attempting to open serial port (attempt ${attempt + 1} of ${maxRetries}): ${options.path}`);
+      pushLog(`Attempting to open serial port (attempt ${attempt + 1} of ${maxRetries}): ${options.path}`);
+
+      let sp = new SerialPort(options);
+      await new Promise((resolve, reject) => {
+        sp.on('open', () => {
+          // Additional logging/output logic here
+          const m = `Serial port opened (event): ${sp.path}`;
+          console.log(m);
+          pushLog(m); // This will emit to all /gateway clients
+
+          // You can also emit a custom event if needed
+          io.of('/gateway').emit('serialport_status', {
+            status: 'open',
+            path: sp.path,
+            timestamp: new Date().toISOString()
+          });
+
+          resolve();
+        });
+        sp.on('error', (err) => {
+          // Additional logging/output logic here
+          const m = `Serial port error (event): ${err.message}`;
+          console.error(m);
+          pushLog(m); // This will emit to all /gateway clients
+
+          // You can also emit a custom event if needed
+          io.of('/gateway').emit('serialport_status', {
+            status: 'error',
+            error: err.message,
+            path: sp.path,
+            timestamp: new Date().toISOString()
+          });
+
+          reject(err);
+        });
+      });
+      console.log('Serial port opened:', options.path);
+      return sp;
+    } catch (err) {
+      console.error(`Serial port open failed (attempt ${attempt + 1}):`, err.message);
+      attempt++;
+      await utils.sleep(delayMs);
+    }
   }
-);
-  
-sp.on('open', function() {
-  var m = `www top level: port.on(open): serial port open ... portName: ${portName}`;
-  pushLog(m);
-});
+  throw new Error('Failed to open serial port after retries');
+}
 
+// Usage:
+(async () => {
+  try {
+    sp = await openSerialPortWithRetry(
+      { path: portName, baudRate: 9600, autoOpen: true }
+    );
+    // Now that sp is ready, set up the pipes:
+    sp.pipe(xbeeAPI.parser);
+    xbeeAPI.builder.pipe(sp);
 
-sp.on('error', function(err) {
-  var m = `SerialPort port Error: ' ${err.message} ${err.stack}`;
-  pushLog(m);
+    // If you have any other sp-dependent setup, put it here.
+    // For example, event listeners:
+    // sp.on('open', ...);
+    // sp.on('error', ...);
 
-});
-
-sp.open(); // even with await - this takes some time - so checking open status here even after await doesn't do what we want
+  } catch (err) {
+    console.error('Could not open serial port:', err.message);
+    // Optionally, exit or continue without serial port
+  }
+})();
 
 
 // Now call it on app launch
@@ -270,8 +318,9 @@ var xbeeAPI = new xbee_api.XBeeAPI({
   api_mode: 1
 });
 
-sp.pipe(xbeeAPI.parser);
-xbeeAPI.builder.pipe(sp);
+// Moved to async function above
+// sp.pipe(xbeeAPI.parser);
+// xbeeAPI.builder.pipe(sp);
 
 // omit the example sp.on open fcn
 

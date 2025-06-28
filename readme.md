@@ -25,6 +25,12 @@ Code:
 - Haha of course implement the feedback from sensors (need to install the physical HW!)
 
 
+### TODO Smallies
+
+- Radio pin number indicator when DIO changed should also show On/Off cross-referenced to the watering circuit model instance
+- NEXT: Why on startup sometimes serial port isn't picked up? And is path reparsed each time on reload? Or only on app launch?
+- Page to show dB contents
+- Indicate bigger is serial port not connected - and maybe allow population anyway
 
 
 ### Dev / Deploy / Versions ###
