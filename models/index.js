@@ -14,6 +14,10 @@ if (config.use_env_variable) {
   sequelize = new Sequelize(process.env[config.use_env_variable], config);
 } else {
   sequelize = new Sequelize(config.database, config.username, config.password, config);
+  if (!config.password) {
+    console.warn('WARNING: No database password is set. This configuration is for example purposes only and should not be used in production.');
+  }
+  //TODO this security (starter setup issue) should be brought out onto any user page
 }
 
 fs

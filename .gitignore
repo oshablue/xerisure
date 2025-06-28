@@ -72,3 +72,6 @@ typings/
 
 # Bundled Backups
 *xerisure*.tar.gz
+
+*.sqlite
+norepo*
