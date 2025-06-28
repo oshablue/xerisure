@@ -148,3 +148,15 @@ To see validation errors on seeding for example:
 ```
 npx sequelize-cli db:seed:all --debug
 ```
+
+
+## Meta Reminders - GPG
+
+To sign using VSCode remote, needed:
+```
+GPG_TTY=$(tty)
+export GPG_TTY 
+```
+
+to allow the passphrase entry in the terminal.
+(https://stackoverflow.com/questions/39494631/gpg-failed-to-sign-the-data-fatal-failed-to-write-commit-object-git-2-10-0)[]
