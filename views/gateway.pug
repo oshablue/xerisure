@@ -223,11 +223,13 @@ block content
     
     function waterCycle(macId, pin, onstate, offstate) {
       var inp = $('input[id="waterCycleDurationMinutesTxt"]');
-      socket.emit('client_set_digital_io_with_timed_reset_known_state_values', macId, pin, onstate, inp.val(), offstate);
+    socket.emit('client_set_digital_io_with_timed_reset_known_state_values', macId, pin, onstate, inp.val(), offstate);
     }
 
-    var gatewaySocket = io('/gateway');
-    gatewaySocket.on('serialport_status', function(data) {
+    // Below is already defined in socketwork.js, loaded, and in this template at the top
+    //var gatewaySocket = io('/gateway');
+
+    socket.on('serialport_status', function(data) {
       var indicator = document.getElementById('serial-port-status-indicator');
       if (!indicator) return;
       if (data.status === 'open') {
@@ -242,5 +244,5 @@ block content
       }
     });
 
-    gatewaySocket.emit('get_serialport_status');
+    socket.emit('get_serialport_status');
 

@@ -69,44 +69,44 @@ window.onload = function () {
 
     // TODO DRY ... eventually ...
     btnSetDestinationMacId.addEventListener("click", function() {
-        gatewaySocket.emit('client_set_destination_mac_id', txtSetDestinationMacId.value);
+        socket.emit('client_set_destination_mac_id', txtSetDestinationMacId.value);
     }, false);
 
     btnSetDigitalIo.addEventListener("click", function() {
       //console.log("set_digital_io" +  txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
-      gatewaySocket.emit('client_set_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
+      socket.emit('client_set_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
     }, false);
 
     btnGetDigitalIo.addEventListener("click", function() {
-      gatewaySocket.emit('client_get_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value);
+      socket.emit('client_get_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value);
     }, false);
 
     btnGetGatewayRadioMacIdInfo.addEventListener("click", function() {
-        gatewaySocket.emit('client_get_gateway_radio_mac_id_info');
+        socket.emit('client_get_gateway_radio_mac_id_info');
     }, false);
 
     btnGetGatewayRadioSerialLinkDestinationMacIdInfo.addEventListener("click", function() {
-        gatewaySocket.emit('client_get_gateway_radio_serial_link_destination_mac_id_info');
+        socket.emit('client_get_gateway_radio_serial_link_destination_mac_id_info');
     }, false);
 
     btnGetRemoteRadioDios.addEventListener("click", function() {
-        gatewaySocket.emit('client_get_remote_radio_dios', txtRemoteRadioMacId.value);
+        socket.emit('client_get_remote_radio_dios', txtRemoteRadioMacId.value);
     }, false);
 
     btnDoNodeDiscover.addEventListener("click", function() {
-        gatewaySocket.emit('client_do_node_discover');
+        socket.emit('client_do_node_discover');
     }, false);
 
     btnGetGatewayRadioDios.addEventListener("click", function() {
-        gatewaySocket.emit('client_get_gateway_radio_dios');
+        socket.emit('client_get_gateway_radio_dios');
     }, false);
 
     btnGetDbRadioMacIds.addEventListener("click", function() {
-        gatewaySocket.emit('client_get_db_radio_mac_ids');
+        socket.emit('client_get_db_radio_mac_ids');
     }, false);
 
     btnPopDbRadioMacIds.addEventListener("click", function() {
-        gatewaySocket.emit('client_pop_db_radio_mac_ids');
+        socket.emit('client_pop_db_radio_mac_ids');
     }, false);
 
     selPinCycleDurationMinutesSel.addEventListener("click", function() {
@@ -115,9 +115,9 @@ window.onload = function () {
 
     btnTimedPinCycle.addEventListener("click", function() {
       if ( txtPinCycleDurationMinutesTxt.value < 0 ) {
-        gatewaySocket.emit('client_set_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
+        socket.emit('client_set_digital_io', txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value);
       } else if ( txtPinCycleDurationMinutesTxt.value >= 0 ) {
-        gatewaySocket.emit('client_set_digital_io_with_timed_reset',
+        socket.emit('client_set_digital_io_with_timed_reset',
           txtSetDigitalIoMacId.value, txtSetDigitalIoPin.value, txtSetDigitalIoPinState.value, txtPinCycleDurationMinutesTxt.value);
       } else {
         console.log("socketwork.js: btnTimedPinCycle txt input value not < 0 or >= 0"); }
@@ -131,11 +131,11 @@ window.onload = function () {
         console.log("Trying reconnect to socket...");
 
         console.log("Before");
-        console.log(gatewaySocket);
-        gatewaySocket.close();
-        gatewaySocket.connect(); // only for socket IO < 2
+        console.log(socket);
+        socket.close();
+        socket.connect(); // only for socket IO < 2
         console.log("After:");
-        console.log(gatewaySocket);
+        console.log(socket);
     }, false);
 
     // TODO this is obivously bad for production:
@@ -165,7 +165,7 @@ window.onload = function () {
         }
       }
       //console.log(res);
-      gatewaySocket.emit('client_store_nd_radios_in_db', res);
+      socket.emit('client_store_nd_radios_in_db', res);
     }, false);
     
     //$('#storedWateringCircuitsHeaderDiv').text("Content loaded from socketwork.js on window.load()");
@@ -183,22 +183,22 @@ window.onload = function () {
 // https://stackoverflow.com/questions/11653237/socket-io-failed-to-load-resource
 //
 //var origin = window.location.origin;
-var gatewaySocket = io('/gateway');
+var socket = io('/gateway');
 //var socket = io.connect(origin + '/gateway');
 
 // https://stackoverflow.com/questions/41924713/node-js-socket-io-page-refresh-multiple-connections
 //
 //var socket = io.connect(origin, {transports: ['websocket'], upgrade: false});
 
-gatewaySocket.on('connected', function(status){
+socket.on('connected', function(status){
   connection.innerHTML += "Socket Connected " + status;
   //socket.emit('join', 'Client emit: client socket.on(connected) reply to server connected msg via socket.on(connected) fnc');
-  gatewaySocket.emit('setupSerialPort');
+  socket.emit('setupSerialPort');
 });
-gatewaySocket.on('disconnect', function(){
+socket.on('disconnect', function(){
   connection.innerHTML = "Socket Disconnected";
 });
-gatewaySocket.on('data', function (data) {
+socket.on('data', function (data) {
   statuslog.innerHTML = statuslog.innerHTML + data;
   statuslog.scrollTop = statuslog.scrollHeight;
 });
@@ -208,12 +208,12 @@ gatewaySocket.on('data', function (data) {
 });*/
 
 // TODO -- this belongs in gateway page only socket work:
-gatewaySocket.on('macids', function(data) {
+socket.on('macids', function(data) {
   macIds.innerHTML = data;
   $(macIds).show();
 });
 
-gatewaySocket.on('macidssel', function(data) {   // macIdsSel is a div containing macIdsSelSel the actual select html tag set
+socket.on('macidssel', function(data) {   // macIdsSel is a div containing macIdsSelSel the actual select html tag set
   macIdsSel.innerHTML = data;
   $(macIdsSel).show();
   // TODO:
@@ -229,14 +229,14 @@ gatewaySocket.on('macidssel', function(data) {   // macIdsSel is a div containin
   inp.val(newMac);
   //testFunction(newMac); // adding to populate eg watering circuits stored
   //console.log(socket);
-  gatewaySocket.emit('client_load_radio_data', newMac);
+  socket.emit('client_load_radio_data', newMac);
   // Yeah this function works enough to populate on page load
 });
-gatewaySocket.on('macIdsFromDb', function(data) {
+socket.on('macIdsFromDb', function(data) {
   divMacIdsFromDb.innerHTML = data;
   $(macIdsFromDb).show();
 });
-gatewaySocket.on('getDioPinStateResult', function(data) {
+socket.on('getDioPinStateResult', function(data) {
   divGetDioPinState.innerHTML = data;
   $(getDioPinState).show();
   $(getDioPinState).css('background-color','green');
@@ -244,7 +244,7 @@ gatewaySocket.on('getDioPinStateResult', function(data) {
     $(getDioPinState).css('background-color','white'); // TODO really need comparison for green/red etc as this builds out
   }, 2000);
 });
-gatewaySocket.on('getDioPinStateResultIndicator', function(data) {
+socket.on('getDioPinStateResultIndicator', function(data) {
   var div = $();
   
   // $('#storedWateringCircuitsDiv > table').find('td').filter(function() { return $(this).text() == data.pin; }).parent('tr') or .closest("tr")
@@ -279,10 +279,10 @@ gatewaySocket.on('getDioPinStateResultIndicator', function(data) {
   }
 
 });
-gatewaySocket.on('radiodata', function(data) {
+socket.on('radiodata', function(data) {
 	$('#storedWateringCircuitsDiv').html(data);
 });
-gatewaySocket.on('updateDioPinLastActiveCell', function(data) {
+socket.on('updateDioPinLastActiveCell', function(data) {
   var div = $();
   
   // $('#storedWateringCircuitsDiv > table').find('td').filter(function() { return $(this).text() == data.pin; }).parent('tr') or .closest("tr")
