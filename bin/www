@@ -569,6 +569,71 @@ io.of('/gateway').on('connection', async function (socket) {
     }
   });
 
+  // From serial reconnect from circle click attempt, and 
+  // also modified from copilot (hence different flow of io.emit here)
+  socket.on('reconnectSerialPort', async function () {
+    console.log('www: Received serial port reconnection request from client');
+
+    // console.log('TEST www: Received reconnectSerialPort event');
+    // socket.emit('serialPortReconnectResult', { 
+    //     success: false, 
+    //     error: 'www: Test response - handler is working' 
+    // });
+
+    try {
+
+      // Close existing port if open
+      if (sp && sp.isOpen) {
+        console.log('Closing existing serial port...');
+        sp.close();
+      }
+
+      console.log('Attempting to reinitialize serial port...');
+
+      try {
+        sp = await openSerialPortWithRetry(
+          { path: portName, baudRate: 9600, autoOpen: true }
+        );
+
+        // Any error should abort further flow here, eg piping etc 
+        // and send flow to catch block
+
+        console.log('Serial port reconnected successfully');
+        socket.emit('serialPortReconnectResult', { success: true });
+
+        // Notify all clients of successful connection
+        io.emit('serialport_status', { status: 'open' });
+
+        // Now that sp is ready, set up the pipes:
+        sp.pipe(xbeeAPI.parser);
+        xbeeAPI.builder.pipe(sp);
+
+
+      } catch (err) {
+
+        console.error('Could not open serial port:', err.message);
+
+        console.error('Error during serial port reconnection:', error);
+        socket.emit('serialPortReconnectResult', {
+          success: false,
+          error: error.message
+        });
+        io.emit('serialport_status', { status: 'error' });
+
+      }
+
+    } catch (error) {
+      console.error('Error during serial port reconnection:', error);
+      socket.emit('serialPortReconnectResult', {
+        success: false,
+        error: error.message
+      });
+      io.emit('serialport_status', { status: 'error' });
+    }
+
+  }); // </ reconnectSerialPort>
+
+
   Gateway.pop_db_radio_mac_ids(socket);
   
 

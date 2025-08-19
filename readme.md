@@ -9,10 +9,9 @@ with nodes etc., currently xbee style radios
 #serialport
 #xbee-api (or custom api)
 #mongoose
+#sequelize
+#sqlite
 
-6-28-25
-Latest:
-bootstrap 4.6.0
 
 
 
@@ -20,7 +19,10 @@ bootstrap 4.6.0
 
 Deployment / Public Repo:
 
-- Extract / purge like dB credentials or just include as examples
+- Indicate warning on pages re non-pw dB example setup (and implement doc for config env examples)
+- No feedback warning
+- Deployment setup checklist in readme
+- Model based edit screens
 
 
 Code:
@@ -33,9 +35,9 @@ Code:
 ### TODO Smallies
 
 - Radio pin number indicator when DIO changed should also show On/Off cross-referenced to the watering circuit model instance
-- NEXT: Why on startup sometimes serial port isn't picked up? And is path reparsed each time on reload? Or only on app launch?
+- DONE NEXT: Why on startup sometimes serial port isn't picked up? And is path reparsed each time on reload? Or only on app launch?
 - Page to show dB contents
-- Indicate bigger is serial port not connected - and maybe allow population anyway
+- DONE Indicate bigger is serial port not connected - and maybe allow population anyway
 
 
 ### Dev / Deploy / Versions ###
@@ -47,6 +49,7 @@ Node Engine: 24.1.0
 npm 11.3.0
 nvm 0.38.0 
 Ubuntu 22.04 LTS
+Bootstrap 4.6.0
 
 Switching from MongoDB to Sqlite because hardware has no AVX instruction, thus newer MongoDBs cannot run (core dump) and oldest non-AVX version is 4.4 and 4.4 or less will only run on 20.04 or less.
 

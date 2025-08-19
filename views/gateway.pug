@@ -229,6 +229,58 @@ block content
     // Below is already defined in socketwork.js, loaded, and in this template at the top
     //var gatewaySocket = io('/gateway');
 
+
+
+
+    $(document).ready(function() {
+      $('#serial-port-status-indicator').on('click', function() {
+        var indicator = $(this);
+        var currentBg = indicator.css('background-color');
+        
+        console.log('Serial port indicator clicked, current color:', currentBg);
+        
+        // Only allow reconnection if not already connected (green)
+        if (currentBg !== 'rgb(1, 128, 0)' && currentBg !== 'blue') {
+          // Show connecting state
+          indicator.css('background-color', 'orange');
+          indicator.attr('title', 'Attempting to reconnect...');
+          
+          // Request reconnection
+          console.log('Emitting reconnectSerialPort event...');
+          socket.emit('reconnectSerialPort');
+          
+          // Add timeout in case no response
+          setTimeout(function() {
+            if (indicator.css('background-color') === 'rgb(255, 165, 0)' || indicator.css('background-color') === 'orange') {
+              console.log('No response received within 5 seconds');
+              indicator.css('background-color', 'red');
+              indicator.attr('title', 'Reconnection timeout - try again');
+            }
+          }, 5000);
+        } else {
+          console.log('Already connected or connecting, ignoring click');
+        }
+      });
+    });
+
+    // Enhanced reconnection result handler
+    socket.on('serialPortReconnectResult', function(data) {
+      console.log('Received reconnection result:', data);
+      var indicator = $('#serial-port-status-indicator');
+      
+      if (data.success) {
+        indicator.css('background-color', 'green');
+        indicator.attr('title', 'Serial port reconnected successfully');
+        console.log('Serial port reconnected successfully');
+      } else {
+        indicator.css('background-color', 'red');
+        indicator.attr('title', 'Failed to reconnect: ' + data.error);
+        console.error('Failed to reconnect serial port:', data.error);
+      }
+    });
+
+
+
     socket.on('serialport_status', function(data) {
       var indicator = document.getElementById('serial-port-status-indicator');
       if (!indicator) return;

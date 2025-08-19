@@ -326,6 +326,10 @@ Gateway.setup_serial_port_and_socket_messaging = async function(io, socket) { //
     Gateway.load_radio_data(socket, macId);
   });
 
+  // Had tried adding serial port reconnect socket.on function here, but the www
+  // place is the one that responds to these commands from the gateway page like click
+  // -ing the circle to reconnect the serial port
+
   // Call any further on-connect startup functions now
 
   // Populate select with stored MACs

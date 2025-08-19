@@ -33,4 +33,18 @@ pre {
   font-size: 12px;
   line-height: 1.5;
   border-radius: 3px;
-  }
+}
+
+#serial-port-status-indicator {
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+#serial-port-status-indicator:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+#serial-port-status-indicator:active {
+  transform: scale(0.95);
+}
