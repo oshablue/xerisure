@@ -119,7 +119,90 @@ var xbee_api = require('xbee-api');
 var XBCs = xbee_api.constants;
 var xbeeAPI = new xbee_api.XBeeAPI({ api_mode: 1 });
 
+
+// Replace your openSerialPortWithRetry function with this updated version:
+
 async function openSerialPortWithRetry(options, maxRetries = 10, delayMs = 2000) {
+  let attempt = 0;
+  
+  while (attempt < maxRetries) {
+    try {
+      // If no specific path provided, find a working device
+      if (!options.path) {
+        try {
+          options.path = await utils.findWorkingTtyUsbDevice(options.baudRate || 9600);
+          console.log(`Auto-detected working USB device: ${options.path}`);
+        } catch (err) {
+          console.error('Could not find working USB device:', err.message);
+          throw err;
+        }
+      }
+      
+      console.log(`Attempting to open serial port (attempt ${attempt + 1} of ${maxRetries}): ${options.path}`);
+      pushLog(`Attempting to open serial port (attempt ${attempt + 1} of ${maxRetries}): ${options.path}`);
+
+      let sp = new SerialPort(options);
+      await new Promise((resolve, reject) => {
+        sp.on('open', () => {
+          const m = `Serial port opened (event): ${sp.path}`;
+          console.log(m);
+          pushLog(m);
+
+          io.of('/gateway').emit('serialport_status', {
+            status: 'open',
+            path: sp.path,
+            timestamp: new Date().toISOString()
+          });
+
+          resolve();
+        });
+        sp.on('error', (err) => {
+          const m = `Serial port error (event): ${err.message}`;
+          console.error(m);
+          pushLog(m);
+
+          io.of('/gateway').emit('serialport_status', {
+            status: 'error',
+            error: err.message,
+            path: sp.path,
+            timestamp: new Date().toISOString()
+          });
+
+          reject(err);
+        });
+      });
+      console.log('Serial port opened:', options.path);
+      return sp;
+      
+    } catch (err) {
+      console.error(`Serial port open failed (attempt ${attempt + 1}):`, err.message);
+      
+      // If this attempt failed, try the next available device
+      if (attempt < maxRetries - 1) {
+        console.log('Trying next available USB device...');
+        const allDevices = utils.getAllTtyUsbDevices();
+        const currentIndex = allDevices.indexOf(options.path);
+        
+        if (currentIndex >= 0 && currentIndex < allDevices.length - 1) {
+          options.path = allDevices[currentIndex + 1];
+          console.log(`Switching to next device: ${options.path}`);
+        } else {
+          // Reset to auto-detect mode for next attempt
+          delete options.path;
+        }
+      }
+      
+      attempt++;
+      if (attempt < maxRetries) {
+        await utils.sleep(delayMs);
+      }
+    }
+  }
+  throw new Error('Failed to open serial port after retries');
+}
+
+
+async function openSerialPortWithRetryBak1(options, maxRetries = 10, delayMs = 2000) {
   let attempt = 0;
   while (attempt < maxRetries) {
     try {
@@ -172,26 +255,48 @@ async function openSerialPortWithRetry(options, maxRetries = 10, delayMs = 2000)
   throw new Error('Failed to open serial port after retries');
 }
 
-// Usage:
+
+// Update your initial serial port setup:
 (async () => {
   try {
-    sp = await openSerialPortWithRetry(
-      { path: portName, baudRate: 9600, autoOpen: true }
-    );
-    // Now that sp is ready, set up the pipes:
+    // Don't specify a path - let it auto-detect
+    sp = await openSerialPortWithRetry({
+      baudRate: 9600,
+      autoOpen: true
+    });
+    
     sp.pipe(xbeeAPI.parser);
     xbeeAPI.builder.pipe(sp);
 
-    // If you have any other sp-dependent setup, put it here.
-    // For example, event listeners:
-    // sp.on('open', ...);
-    // sp.on('error', ...);
-
   } catch (err) {
     console.error('Could not open serial port:', err.message);
-    // Optionally, exit or continue without serial port
+    pushLog('Serial port initialization failed: ' + err.message);
   }
 })();
+
+
+
+// Bak1
+// Usage:
+// (async () => {
+//   try {
+//     sp = await openSerialPortWithRetry(
+//       { path: portName, baudRate: 9600, autoOpen: true }
+//     );
+//     // Now that sp is ready, set up the pipes:
+//     sp.pipe(xbeeAPI.parser);
+//     xbeeAPI.builder.pipe(sp);
+
+//     // If you have any other sp-dependent setup, put it here.
+//     // For example, event listeners:
+//     // sp.on('open', ...);
+//     // sp.on('error', ...);
+
+//   } catch (err) {
+//     console.error('Could not open serial port:', err.message);
+//     // Optionally, exit or continue without serial port
+//   }
+// })();
 
 
 // Now call it on app launch
@@ -369,8 +474,54 @@ let pushLog = function (m, socket) {
 
 
 
-// TODO this needs now to be refactored to reflect the retries code
+// Update your reopenSerialPort function:
 var reopenSerialPort = async function() {
+  try {
+    // Auto-detect working device
+    const workingDevice = await utils.findWorkingTtyUsbDevice(9600);
+    
+    sp = new SerialPort({
+      path: workingDevice,
+      baudRate: 9600,
+      autoOpen: false
+    });
+
+    sp.on('open', function() {
+      var m = `www top level: port.on(open): serial port open ... portName: ${workingDevice}`;
+      pushLog(m);
+    });
+
+    sp.on('error', function(err) {
+      var m = `SerialPort port Error: ' ${err.message} ${err.stack}`;
+      pushLog(m);
+    });
+
+    await sp.open();
+    sp.pipe(xbeeAPI.parser);
+    xbeeAPI.builder.pipe(sp);
+
+    setTimeout(function() {
+      if (sp.isOpen) {
+        var m = `sp re-opened with path ${sp.path} and xbeeAPI <=> sp pipes re-established.`;
+        pushLog(m);
+      } else {
+        var m = `Problem: after trying to re-open serial port with auto-detected path ${workingDevice}, sp is still not open.`;
+        pushLog(m);
+      }
+    }, 2000);
+
+  } catch (err) {
+    var m = `Failed to reopen serial port: ${err.message}`;
+    pushLog(m);
+  }
+}
+
+
+
+
+
+// TODO this needs now to be refactored to reflect the retries code
+var reopenSerialPortBak1 = async function() {
   portName = utils.getFirstTtyUsbDeviceSync();
   //await setupAndOpenSerialPort(portName);
 
@@ -569,9 +720,61 @@ io.of('/gateway').on('connection', async function (socket) {
     }
   });
 
+
+
+  // Update your reconnectSerialPort socket handler:
+  socket.on('reconnectSerialPort', async function () {
+    console.log('www: Received serial port reconnection request from client');
+
+    try {
+      // Close existing port if open
+      if (sp && sp.isOpen) {
+        console.log('Closing existing serial port...');
+        sp.close();
+      }
+
+      console.log('Attempting to reinitialize serial port...');
+
+      try {
+        // Auto-detect working device
+        sp = await openSerialPortWithRetry({
+          baudRate: 9600,
+          autoOpen: true
+        });
+
+        console.log('Serial port reconnected successfully');
+        socket.emit('serialPortReconnectResult', { success: true });
+        io.emit('serialport_status', { status: 'open' });
+
+        // Set up the pipes:
+        sp.pipe(xbeeAPI.parser);
+        xbeeAPI.builder.pipe(sp);
+
+      } catch (err) {
+        console.error('Could not open serial port:', err.message);
+        socket.emit('serialPortReconnectResult', {
+          success: false,
+          error: err.message
+        });
+        io.emit('serialport_status', { status: 'error' });
+      }
+
+    } catch (error) {
+      console.error('Error during serial port reconnection:', error);
+      socket.emit('serialPortReconnectResult', {
+        success: false,
+        error: error.message
+      });
+      io.emit('serialport_status', { status: 'error' });
+    }
+  }); // </ socket.on('reconnectSerialPort', ...) >
+
+
+
+
   // From serial reconnect from circle click attempt, and 
   // also modified from copilot (hence different flow of io.emit here)
-  socket.on('reconnectSerialPort', async function () {
+  socket.on('reconnectSerialPortBak1', async function () {
     console.log('www: Received serial port reconnection request from client');
 
     // console.log('TEST www: Received reconnectSerialPort event');
