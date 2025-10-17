@@ -139,6 +139,33 @@ WateringCircuit.belongsTo(Radio);
 // });
 
 
+// Add this virtual method to calculate duration for a specific watering session
+
+// LogEvent.prototype.calculateWateringDuration = async function() {
+//   if (!isWateringOnEvent(this.event_type)) {
+//     return null; // Only calculate for "on" events
+//   }
+  
+//   // Find the next "off" event for the same channel after this "on" event
+//   const offEvent = await LogEvent.findOne({
+//     where: {
+//       createdAt: { [Op.gt]: this.createdAt },
+//       // Add channel matching logic here based on your schema
+//       // pin_number: this.pin_number,
+//       // mac_id: this.mac_id,
+//     },
+//     order: [['createdAt', 'ASC']]
+//   });
+  
+//   if (offEvent && isWateringOffEvent(offEvent.event_type)) {
+//     const durationMs = new Date(offEvent.createdAt) - new Date(this.createdAt);
+//     return Math.round(durationMs / (1000 * 60)); // Return minutes
+//   }
+  
+//   return null;
+// };
+
+
 // Export the model
 // Yes this needs to go at the end to export the statics for example
 var Wateringcircuit = module.exports = WateringCircuit; // mongoose.model('Wateringcircuit', WateringCircuit);
